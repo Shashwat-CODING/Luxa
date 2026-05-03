@@ -8,7 +8,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Version-2.2.0-E50914?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/Flutter-3.11+-02569B?style=for-the-badge&logo=flutter" alt="Flutter">
-  <img src="https://img.shields.io/badge/Platform-Android%20|%20Windows%20|%20Linux-black|%20web-black?style=for-the-badge" alt="Platforms">
+  <img src="https://img.shields.io/badge/Platform-Android%20|%20Windows%20|%20Linux|%20web-black?style=for-the-badge" alt="Platforms">
 </p>
 
 ---
