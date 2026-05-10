@@ -97,4 +97,4 @@ Luxa supports advanced deep links and URL routing to allow seamless content shar
 Distributed under the MIT License.
 
 ---
-<p align="center">Built with ❤️ by the Luxa Team</p>
+<p align="center">Built with ❤️ by Shashwat</p>
