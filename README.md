@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.5.0-E50914?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.3.0-E50914?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/Flutter-3.41+-02569B?style=for-the-badge&logo=flutter" alt="Flutter">
   <img src="https://img.shields.io/badge/Platform-Android%20|%20Windows%20|%20Web-black?style=for-the-badge" alt="Platforms">
   <img src="https://img.shields.io/badge/Website-luxa--app.vercel.app-673AB7?style=for-the-badge" alt="Website">
