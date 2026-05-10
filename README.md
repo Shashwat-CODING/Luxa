@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.3.0-E50914?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.5.0-E50914?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/Flutter-3.41+-02569B?style=for-the-badge&logo=flutter" alt="Flutter">
   <img src="https://img.shields.io/badge/Platform-Android%20|%20Windows%20|%20Web-black?style=for-the-badge" alt="Platforms">
   <img src="https://img.shields.io/badge/Website-luxa--app.vercel.app-673AB7?style=for-the-badge" alt="Website">
@@ -66,10 +66,14 @@ Luxa supports advanced deep links and URL routing to allow seamless content shar
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="screenshots/mob1.jpeg" width="200" alt="Luxa UI 1">
-  <img src="screenshots/mob2.jpeg" width="200" alt="Luxa UI 2">
-  <img src="screenshots/mob3.jpeg" width="200" alt="Luxa UI 3">
-  <img src="screenshots/mob4.jpeg" width="200" alt="Luxa UI 4">
+  <img src="screenshots/1.jpg" width="200" alt="Luxa Screen 1">
+  <img src="screenshots/2.jpg" width="200" alt="Luxa Screen 2">
+  <img src="screenshots/3.jpg" width="200" alt="Luxa Screen 3">
+  <img src="screenshots/4.jpg" width="200" alt="Luxa Screen 4">
+  <img src="screenshots/5.jpg" width="200" alt="Luxa Screen 5">
+  <img src="screenshots/6.jpg" width="200" alt="Luxa Screen 6">
+  <img src="screenshots/7.jpg" width="200" alt="Luxa Screen 7">
+  <img src="screenshots/8.jpg" width="200" alt="Luxa Screen 8">
 </p>
 
 ## 🚀 Getting Started
@@ -97,4 +101,4 @@ Luxa supports advanced deep links and URL routing to allow seamless content shar
 Distributed under the MIT License.
 
 ---
-<p align="center">Built with ❤️ by Shashwat</p>
+<p align="center">Built with ❤️ by the Luxa Team</p>
