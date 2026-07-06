@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" prefix="og: https://ogp.me/ns#">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+  <title>Muzo — Premium YouTube Music Client</title>
+  <meta name="description"
+    content="Muzo is a privacy-focused YouTube Music client built with Flutter. Ad-free, offline downloads, karaoke lyrics, gesture player, Spotify import, community sharing — no account needed." />
+  <meta name="keywords"
+    content="Muzo, Flutter music app, YouTube Music client, ad-free music, karaoke lyrics, offline music, Spotify import, Android music app, free APK" />
+  <meta name="author" content="Muzo" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="canonical" href="https://muzo-app.netlify.app" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://muzo-app.netlify.app" />
+  <meta property="og:title" content="Muzo — Premium YouTube Music Client" />
+  <meta property="og:description"
+    content="A privacy-focused YouTube Music client with karaoke lyrics, gesture player, offline downloads, Spotify import, and community sharing. No ads. No account required." />
+  <meta property="og:image" content="https://raw.githubusercontent.com/Scodify236/muzo-w/main/logo.png" />
+  <meta property="og:site_name" content="Muzo" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Muzo — Premium YouTube Music Client" />
+  <meta name="twitter:description"
+    content="Privacy-focused YouTube Music client. Karaoke lyrics, gesture player, offline downloads, Spotify import. No ads, no account." />
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/Scodify236/muzo-w/main/logo.png" />
+  <meta name="google-adsense-account" content="ca-pub-4253536927389825">
+
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="apple-touch-icon" href="logo.png" />
+
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Muzo",
+      "operatingSystem": "Android",
+      "applicationCategory": "MusicApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "Free ad-free music streaming for Android with synced lyrics, YouTube sync, and playlist import.",
+      "url": "https://muzo-app.netlify.app",
+      "logo": "https://raw.githubusercontent.com/Scodify236/muzo-w/main/logo.png"
+    }
+  </script>
+  <style>
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    /* ── Top Announcement Banner ── */
+    #app-banner {
+      position: relative;
+      z-index: 9999;
+      background: #fff;
+      color: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 6px 44px;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      border-bottom: 1px solid #ebebeb;
+      flex-wrap: nowrap;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    #app-banner .banner-text {
+      color: #333;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #app-banner .banner-text strong {
+      font-weight: 700;
+      color: #111;
+    }
+
+    #app-banner .banner-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #111;
+      color: #fff;
+      text-decoration: none;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 4px 11px;
+      border-radius: 999px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: opacity 0.15s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    #app-banner .banner-cta:hover {
+      opacity: 0.7;
+    }
+
+    #app-banner .banner-close {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #bbb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px;
+      line-height: 1;
+      transition: color 0.12s;
+    }
+
+    #app-banner .banner-close:hover {
+      color: #111;
+    }
+
+    #app-banner.banner-hidden {
+      display: none;
+    }
+
+    /* Ensure animated elements are visible (JS animates them) */
+    .mask-inner {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .hero-sub {
+      opacity: 1;
+    }
+
+    .hero-trust {
+      opacity: 1;
+    }
+
+    .hero-eyebrow {
+      opacity: 1;
+    }
+
+    /* ====================================================
+     HELVETICA NEUE — ABSOLUTE PRIORITY (inline wins all)
+  ==================================================== */
+    html body #hero h1,
+    html body #hero h1 span,
+    html body #hero .mask-inner,
+    html body #hero .hero-desc,
+    html body #hero .hero-actions a,
+    html body #hero .hero-trust li,
+    html body #hero .hero-appname span,
+    html body .hero-content,
+    html body .hero-content * {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+    }
+
+    /* Nav: always show backdrop, top is set by JS to track the banner scroll */
+    .nav {
+      background: var(--bg-nav);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Stronger border + shadow when scrolled */
+    .nav.scrolled {
+      border-bottom-color: var(--border-mid);
+      box-shadow: 0 1px 32px rgba(0, 0, 0, 0.22);
+    }
+  </style>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4253536927389825"
+    crossorigin="anonymous"></script>
+</head>
+
+<body>
+
+  <!-- Muzo Movies Banner -->
+  <div id="app-banner" role="banner" aria-label="Muzo Movies app announcement">
+    <span class="banner-text">Download <strong>Muzo Movies</strong> — unlimited entertainment, free.</span>
+    <a href="https://app.muzo.xyz" target="_blank" rel="noopener noreferrer" class="banner-cta"
+      aria-label="Download Muzo Movies app">Get the App</a>
+    <button class="banner-close" id="bannerClose" aria-label="Dismiss" type="button">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </button>
+  </div>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="cursor-dot" id="cursorDot" aria-hidden="true"></div>
+  <div class="cursor-ring" id="cursorRing" aria-hidden="true"></div>
+  <div class="progress-bar" id="progressBar" aria-hidden="true"></div>
+
+  <canvas id="musicCanvas" aria-hidden="true"></canvas>
+
+  <div class="ambient-lines" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+
+  <header class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="/" class="wordmark" aria-label="Muzo home">
+        <img src="logo.png" alt="Muzo logo" class="wordmark-img" width="28" height="28" />
+        <span class="wordmark-text">Muzo</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#screenshots" class="nav-link">Screenshots</a>
+        <a href="#download" class="nav-link">Download</a>
+
+        <a href="https://github.com/Shashwat-CODING/Muzo" target="_blank" rel="noopener noreferrer"
+          class="nav-link nav-github" aria-label="Open Muzo on GitHub">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+          </svg>
+          <span class="nav-gh-label">GitHub</span>
+        </a>
+
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15"
+            height="15" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15"
+            height="15" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+
+        <a href="#download" class="nav-pill">Get App</a>
+      </nav>
+
+      <div class="nav-mobile">
+        <button class="theme-toggle theme-toggle-mob" id="themeToggleMob" type="button" aria-label="Toggle theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15"
+            height="15" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15"
+            height="15" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+
+        <a href="#download" class="nav-pill-mob">Get App</a>
+
+        <button class="hamburger" id="hamburger" type="button" aria-label="Open menu" aria-controls="mobileDrawer"
+          aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="mobile-drawer" id="mobileDrawer" aria-hidden="true">
+      <nav class="drawer-links" aria-label="Mobile navigation">
+        <a href="#features" class="drawer-link">Features</a>
+        <a href="#screenshots" class="drawer-link">Screenshots</a>
+        <a href="#download" class="drawer-link">Download</a>
+        <a href="https://github.com/Shashwat-CODING/Muzo" target="_blank" rel="noopener noreferrer"
+          class="drawer-link">GitHub</a>
+        <a href="https://github.com/Shashwat-CODING/Muzo/releases/latest" class="drawer-cta" target="_blank"
+          rel="noopener noreferrer">Download APK</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="hero" id="hero" aria-labelledby="hero-heading">
+      <img class="hero-bg-gif" src="bg.gif" alt="" aria-hidden="true" loading="eager" fetchpriority="high" />
+
+      <div class="hero-grid-bg" aria-hidden="true"></div>
+      <canvas id="waveCanvas" aria-hidden="true"></canvas>
+      <canvas id="vizCanvas" aria-hidden="true"></canvas>
+      <div class="hero-vignette" aria-hidden="true"></div>
+      <div class="orb orb-1" aria-hidden="true"></div>
+      <div class="orb orb-2" aria-hidden="true"></div>
+      <div class="orb orb-3" aria-hidden="true"></div>
+      <div class="particles" id="particles" aria-hidden="true"></div>
+
+
+
+      <!-- Heading block -->
+      <div class="hero-content">
+        <h1 id="hero-heading">
+          <span class="mask-wrap">
+            <span class="mask-inner anim-l1">Pure music.</span>
+          </span>
+          <span class="mask-wrap">
+            <span class="mask-inner anim-l2">Zero distractions.</span>
+          </span>
+        </h1>
+
+        <p class="hero-desc">
+          Muzo is a powerful, privacy-focused YouTube Music client built with Flutter.
+          Enjoy word-by-word karaoke lyrics, an immersive player, offline
+          downloads, and a community feed — all ad-free,
+          no account required.
+        </p>
+
+        <div class="hero-actions">
+          <a href="https://github.com/Shashwat-CODING/Muzo/releases/latest" class="btn-main btn-glow" target="_blank"
+            rel="noopener noreferrer">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              aria-hidden="true">
+              <path d="M12 3v13M5 14l7 7 7-7"></path>
+              <path d="M3 21h18"></path>
+            </svg>
+            Download APK — Free
+          </a>
+
+          <a href="#features" class="btn-ghost">
+            See features
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              aria-hidden="true">
+              <path d="M5 12h14M12 5l7 7-7 7"></path>
+            </svg>
+          </a>
+        </div>
+
+        <ul class="hero-trust" aria-label="App highlights">
+          <li class="trust-item">No account needed</li>
+          <li class="trust-sep" aria-hidden="true"></li>
+          <li class="trust-item">Android · iOS · macOS</li>
+          <li class="trust-sep" aria-hidden="true"></li>
+          <li class="trust-item">v4.0.0</li>
+          <li class="trust-sep" aria-hidden="true"></li>
+          <li class="trust-item">Free &amp; Open Source</li>
+        </ul>
+      </div>
+
+      <!-- Phone mockups -->
+      <div class="hero-phones" aria-hidden="true">
+        <div class="s24-wrap s24-left">
+          <div class="s24-frame">
+            <div class="s24-pill"></div>
+            <div class="s24-screen">
+              <img src="library.jpg" alt="Library screen" class="s24-img" loading="eager" />
+              <div class="s24-shine"></div>
+            </div>
+            <div class="s24-btn s24-vol-up"></div>
+            <div class="s24-btn s24-vol-dn"></div>
+            <div class="s24-btn s24-power"></div>
+            <div class="s24-spen"></div>
+          </div>
+          <div class="s24-glow"></div>
+        </div>
+
+        <div class="s24-wrap s24-center">
+          <div class="s24-frame s24-frame-hero">
+            <div class="s24-pill"></div>
+            <div class="s24-screen">
+              <img src="lyricswithcontrols.jpg" alt="Now playing screen" class="s24-img" loading="eager" />
+              <div class="s24-shine"></div>
+            </div>
+            <div class="s24-btn s24-vol-up"></div>
+            <div class="s24-btn s24-vol-dn"></div>
+            <div class="s24-btn s24-power"></div>
+            <div class="s24-spen"></div>
+          </div>
+          <div class="s24-glow s24-glow-center"></div>
+        </div>
+
+        <div class="s24-wrap s24-right">
+          <div class="s24-frame">
+            <div class="s24-pill"></div>
+            <div class="s24-screen">
+              <img src="lyrics_full.jpg" alt="Lyrics screen" class="s24-img" loading="eager" />
+              <div class="s24-shine"></div>
+            </div>
+            <div class="s24-btn s24-vol-up"></div>
+            <div class="s24-btn s24-vol-dn"></div>
+            <div class="s24-btn s24-power"></div>
+            <div class="s24-spen"></div>
+          </div>
+          <div class="s24-glow"></div>
+        </div>
+      </div>
+
+      <div class="scroll-hint" aria-hidden="true">
+        <div class="scroll-chevrons">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="marquee-wrap" aria-hidden="true">
+      <div class="marquee-track">
+        <div class="marquee-row">
+          <span>Ad-free</span><span class="md">·</span>
+          <span>Karaoke Lyrics</span><span class="md">·</span>
+          <span>Gesture Player</span><span class="md">·</span>
+          <span>Offline Downloads</span><span class="md">·</span>
+          <span>Spotify Import</span><span class="md">·</span>
+          <span>Community Feed</span><span class="md">·</span>
+          <span>No Account</span><span class="md">·</span>
+          <span>Glassmorphic UI</span><span class="md">·</span>
+          <span>Lofi Mode</span><span class="md">·</span>
+          <span>Open Source</span><span class="md">·</span>
+        </div>
+        <div class="marquee-row" aria-hidden="true">
+          <span>Ad-free</span><span class="md">·</span>
+          <span>Karaoke Lyrics</span><span class="md">·</span>
+          <span>Gesture Player</span><span class="md">·</span>
+          <span>Offline Downloads</span><span class="md">·</span>
+          <span>Spotify Import</span><span class="md">·</span>
+          <span>Community Feed</span><span class="md">·</span>
+          <span>No Account</span><span class="md">·</span>
+          <span>Glassmorphic UI</span><span class="md">·</span>
+          <span>Lofi Mode</span><span class="md">·</span>
+          <span>Open Source</span><span class="md">·</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="stats-bar" aria-label="App stats">
+      <div class="stat reveal">
+        <span class="sn" data-target="100">0</span><span class="ss">%</span>
+        <p>Ad-free</p>
+      </div>
+      <div class="sdiv" aria-hidden="true"></div>
+      <div class="stat reveal" data-delay="100">
+        <span class="sn sw">60+ FPS</span>
+        <p>Karaoke lyrics</p>
+      </div>
+      <div class="sdiv" aria-hidden="true"></div>
+      <div class="stat reveal" data-delay="200">
+        <span class="sn" data-target="0">0</span>
+        <p>Accounts required</p>
+      </div>
+      <div class="sdiv" aria-hidden="true"></div>
+      <div class="stat reveal" data-delay="300">
+        <span class="sn sw">v4.0</span>
+        <p>Latest release</p>
+      </div>
+    </section>
+
+    <section class="features" id="features" aria-labelledby="features-heading">
+      <div class="container">
+        <div class="feat-header">
+          <div class="eyebrow">
+            <span class="el"></span>
+            Features
+            <span class="el"></span>
+          </div>
+          <h2 class="feat-h" id="features-heading">
+            Everything that matters.
+            <br />
+            <em>Nothing that gets in the way.</em>
+          </h2>
+        </div>
+
+        <div class="feat-list">
+          <div class="feat-row reveal" data-delay="0">
+            <div class="feat-num">01</div>
+            <div class="feat-divider" aria-hidden="true"></div>
+            <div class="feat-body">
+              <h3>Word-by-word karaoke lyrics</h3>
+              <p>Words fill with color in real time as the artist sings, running at a buttery-smooth 60+ FPS.
+                Line-by-line sweep, active-line highlight, and smooth auto-scroll included.</p>
+            </div>
+            <div class="feat-tag">Lyrics</div>
+          </div>
+
+          <div class="feat-row reveal" data-delay="60">
+            <div class="feat-num">02</div>
+            <div class="feat-divider" aria-hidden="true"></div>
+            <div class="feat-body">
+              <h3>Immersive gesture player</h3>
+              <p>Album art fills the full screen. Double-tap to play/pause, swipe to skip tracks, swipe right to control
+                volume with a frosted glass bar — no buttons needed.</p>
+            </div>
+            <div class="feat-tag">Player</div>
+          </div>
+
+          <div class="feat-row reveal" data-delay="120">
+            <div class="feat-num">03</div>
+            <div class="feat-divider" aria-hidden="true"></div>
+            <div class="feat-body">
+              <h3>Glassmorphic adaptive UI</h3>
+              <p>Dynamic dark &amp; light themes with glass-effect panels that adapt to your album art. Contrast-aware
+                controls, desktop optimization, and smooth 60 FPS animations throughout.</p>
+            </div>
+            <div class="feat-tag">Design</div>
+          </div>
+
+          <div class="feat-row reveal" data-delay="180">
+            <div class="feat-num">04</div>
+            <div class="feat-divider" aria-hidden="true"></div>
+            <div class="feat-body">
+              <h3>Offline downloads &amp; Spotify import</h3>
+              <p>Download any track or video for offline listening. Paste a public Spotify playlist URL to instantly
+                import all your favorite songs.</p>
+            </div>
+            <div class="feat-tag">Library</div>
+          </div>
+
+          <div class="feat-row reveal" data-delay="240">
+            <div class="feat-num">05</div>
+            <div class="feat-divider" aria-hidden="true"></div>
+            <div class="feat-body">
+              <h3>Community feed &amp; sharing</h3>
+              <p>Search, stream, and discover tracks uploaded by the community in a global feed. Follow your favorite
+                artists and share links directly from YouTube or YouTube Music.</p>
+            </div>
+            <div class="feat-tag">Social</div>
+          </div>
+
+          <div class="feat-row reveal" data-delay="300">
+            <div class="feat-num">06</div>
+            <div class="feat-divider" aria-hidden="true"></div>
+            <div class="feat-body">
+              <h3>Privacy-first, no account required</h3>
+              <p>All favorites, playlists, and history are stored locally by default. Optionally sign in with Google for
+                cloud sync. Zero-wait launch with parallel background loading.</p>
+            </div>
+            <div class="feat-tag">Privacy</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scr-section" id="screenshots" aria-labelledby="screenshots-heading">
+      <div class="container">
+        <div class="eyebrow">
+          <span class="el"></span>
+          Interface
+          <span class="el"></span>
+        </div>
+
+        <h2 class="sh reveal" id="screenshots-heading">
+          Built to stay out of the way.<br />
+          Made to keep you in the music.
+        </h2>
+      </div>
+
+      <div class="scr-scroll" id="scrScroll">
+        <article class="scr-item reveal">
+          <div class="scr-s24">
+            <div class="scr-s24-frame">
+              <div class="scr-pill"></div>
+              <img src="home.jpg" alt="Home screen" loading="lazy" />
+              <div class="scr-shine"></div>
+              <div class="scr-btn scr-vol-up"></div>
+              <div class="scr-btn scr-vol-dn"></div>
+              <div class="scr-btn scr-power"></div>
+              <div class="scr-spen"></div>
+            </div>
+            <div class="scr-glow"></div>
+          </div>
+          <p>Home</p>
+        </article>
+
+        <article class="scr-item reveal">
+          <div class="scr-s24">
+            <div class="scr-s24-frame">
+              <div class="scr-pill"></div>
+              <img src="player.jpg" alt="Now Playing screen" loading="lazy" />
+              <div class="scr-shine"></div>
+              <div class="scr-btn scr-vol-up"></div>
+              <div class="scr-btn scr-vol-dn"></div>
+              <div class="scr-btn scr-power"></div>
+              <div class="scr-spen"></div>
+            </div>
+            <div class="scr-glow"></div>
+          </div>
+          <p>Now Playing</p>
+        </article>
+
+        <article class="scr-item reveal">
+          <div class="scr-s24">
+            <div class="scr-s24-frame">
+              <div class="scr-pill"></div>
+              <img src="lyricswithcontrols.jpg" alt="Lyrics with controls screen" loading="lazy" />
+              <div class="scr-shine"></div>
+              <div class="scr-btn scr-vol-up"></div>
+              <div class="scr-btn scr-vol-dn"></div>
+              <div class="scr-btn scr-power"></div>
+              <div class="scr-spen"></div>
+            </div>
+            <div class="scr-glow"></div>
+          </div>
+          <p>Lyrics + Controls</p>
+        </article>
+
+        <article class="scr-item reveal">
+          <div class="scr-s24">
+            <div class="scr-s24-frame">
+              <div class="scr-pill"></div>
+              <img src="lyrics_full.jpg" alt="Full lyrics screen" loading="lazy" />
+              <div class="scr-shine"></div>
+              <div class="scr-btn scr-vol-up"></div>
+              <div class="scr-btn scr-vol-dn"></div>
+              <div class="scr-btn scr-power"></div>
+              <div class="scr-spen"></div>
+            </div>
+            <div class="scr-glow"></div>
+          </div>
+          <p>Full Lyrics</p>
+        </article>
+
+        <article class="scr-item reveal">
+          <div class="scr-s24">
+            <div class="scr-s24-frame">
+              <div class="scr-pill"></div>
+              <img src="library.jpg" alt="Library screen" loading="lazy" />
+              <div class="scr-shine"></div>
+              <div class="scr-btn scr-vol-up"></div>
+              <div class="scr-btn scr-vol-dn"></div>
+              <div class="scr-btn scr-power"></div>
+              <div class="scr-spen"></div>
+            </div>
+            <div class="scr-glow"></div>
+          </div>
+          <p>Library</p>
+        </article>
+
+        <article class="scr-item reveal">
+          <div class="scr-s24">
+            <div class="scr-s24-frame">
+              <div class="scr-pill"></div>
+              <img src="search.jpg" alt="Search screen" loading="lazy" />
+              <div class="scr-shine"></div>
+              <div class="scr-btn scr-vol-up"></div>
+              <div class="scr-btn scr-vol-dn"></div>
+              <div class="scr-btn scr-power"></div>
+              <div class="scr-spen"></div>
+            </div>
+            <div class="scr-glow"></div>
+          </div>
+          <p>Search</p>
+        </article>
+
+        <article class="scr-item reveal">
+          <div class="scr-s24">
+            <div class="scr-s24-frame">
+              <div class="scr-pill"></div>
+              <img src="queuerelatedsongs.jpg" alt="Queue and related songs screen" loading="lazy" />
+              <div class="scr-shine"></div>
+              <div class="scr-btn scr-vol-up"></div>
+              <div class="scr-btn scr-vol-dn"></div>
+              <div class="scr-btn scr-power"></div>
+              <div class="scr-spen"></div>
+            </div>
+            <div class="scr-glow"></div>
+          </div>
+          <p>Queue</p>
+        </article>
+
+        <article class="scr-item reveal">
+          <div class="scr-s24">
+            <div class="scr-s24-frame">
+              <div class="scr-pill"></div>
+              <img src="community.jpg" alt="Community screen" loading="lazy" />
+              <div class="scr-shine"></div>
+              <div class="scr-btn scr-vol-up"></div>
+              <div class="scr-btn scr-vol-dn"></div>
+              <div class="scr-btn scr-power"></div>
+              <div class="scr-spen"></div>
+            </div>
+            <div class="scr-glow"></div>
+          </div>
+          <p>Community</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="dl-section" id="download" aria-labelledby="download-heading">
+      <div class="dl-grid-bg" aria-hidden="true"></div>
+      <div class="dl-orb dl-o1" aria-hidden="true"></div>
+      <div class="dl-orb dl-o2" aria-hidden="true"></div>
+
+      <div class="dl-inner reveal">
+        <div class="eyebrow">
+          <span class="el"></span>
+          Download
+          <span class="el"></span>
+        </div>
+
+        <h2 class="dl-h" id="download-heading">Ready to press play?</h2>
+        <p class="dl-sub">Free to download. No account required. Install and start listening.</p>
+
+        <div class="dl-card">
+          <div class="dl-card-row">
+            <div class="dl-icon">
+              <img src="logo.png" alt="Muzo app icon" width="46" height="46" />
+            </div>
+
+            <div class="dl-info">
+              <strong>Muzo</strong>
+              <span>v4.0.0 &middot; Android &middot; iOS &middot; macOS</span>
+            </div>
+
+            <a href="https://github.com/Shashwat-CODING/Muzo/releases/latest" class="btn-main btn-glow" target="_blank"
+              rel="noopener noreferrer">
+              Download APK
+            </a>
+          </div>
+          <div class="dl-card-shine"></div>
+        </div>
+
+        <p class="dl-note">
+          By downloading, you agree to our
+          <a href="/terms.html">Terms</a> and
+          <a href="/privacy.html">Privacy Policy</a>.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="ft-top">
+      <div class="ft-brand">
+        <a href="/" class="wordmark">
+          <img src="logo.png" alt="Muzo logo" class="wordmark-img" width="28" height="28" />
+          <span class="wordmark-text">Muzo</span>
+        </a>
+        <p>Premium YouTube Music client. Free &amp; open source.</p>
+      </div>
+
+      <nav class="ft-cols" aria-label="Footer navigation">
+        <div class="ft-col">
+          <h4>App</h4>
+          <a href="#features">Features</a>
+          <a href="#screenshots">Screenshots</a>
+          <a href="#download">Download</a>
+        </div>
+
+        <div class="ft-col">
+          <h4>Legal</h4>
+          <a href="/privacy.html">Privacy Policy</a>
+          <a href="/terms.html">Terms of Use</a>
+        </div>
+
+        <div class="ft-col">
+          <h4>Links</h4>
+          <a href="https://github.com/Shashwat-CODING/Muzo" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+      </nav>
+    </div>
+
+    <div class="ft-bottom">
+      <p>&copy; 2025 Muzo. All rights reserved.</p>
+      <p>Made for people who love music.</p>
+    </div>
+  </footer>
+
+  <script src="app.js" defer></script>
+  <script>
+    // Banner dismiss logic — nav position is managed by app.js scroll handler
+    (function () {
+      var banner = document.getElementById('app-banner');
+      var btn = document.getElementById('bannerClose');
+      if (!banner) return;
+
+      // Restore dismissed state before first paint
+      if (sessionStorage.getItem('muzo-banner-dismissed') === '1') {
+        banner.classList.add('banner-hidden');
+      }
+
+      if (btn) {
+        btn.addEventListener('click', function () {
+          banner.classList.add('banner-hidden');
+          sessionStorage.setItem('muzo-banner-dismissed', '1');
+          // Snap nav immediately, let app.js recalculate
+          var nav = document.getElementById('nav');
+          if (nav) nav.style.top = '0px';
+          window.dispatchEvent(new Event('scroll'));
+        });
+      }
+    })();
+  </script>
+
+  <!-- Ad Zone #7013881 -->
+
+
+</body>
+
+</html>
