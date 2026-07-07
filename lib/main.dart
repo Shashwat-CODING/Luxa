@@ -5,13 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:fvp/fvp.dart' as fvp;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:permission_handler/permission_handler.dart';
+
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
-import 'screens/livetv_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/arts_screen.dart';
@@ -43,7 +43,13 @@ void main() async {
     MobileAds.instance.initialize();
     AdService.loadRewardedAd();
   }
-  fvp.registerWith(options: {'video.decoders': ['D3D11', 'NVDEC', 'FFmpeg']});
+  fvp.registerWith(options: {
+    'video.decoders': ['AMediaCodec', 'VT', 'D3D11', 'NVDEC', 'FFmpeg'],
+    'avformat.probesize': '1048576',
+    'avformat.max_analyze_duration': '1000000',
+    'demuxer.buffer.min': '1024',
+    'demuxer.buffer.max': '8192',
+  });
   await WatchHistory.load();
   await BookmarkService.init();
   await ApiService.instance.init();
@@ -91,6 +97,16 @@ class _LuxaAppState extends State<LuxaApp> with WidgetsBindingObserver {
 
   Future<void> _checkPermissions() async {
     // Basic check for now, can be expanded to check specific permissions via PermissionService
+    if (Platform.isAndroid || Platform.isIOS) {
+      try {
+        final status = await Permission.notification.status;
+        if (!status.isGranted && !status.isPermanentlyDenied) {
+          await Permission.notification.request();
+        }
+      } catch (e) {
+        debugPrint('Error requesting notification permission: $e');
+      }
+    }
     if (mounted) {
       setState(() {
         _needsPermissionGate = false; 
@@ -117,12 +133,13 @@ class _LuxaAppState extends State<LuxaApp> with WidgetsBindingObserver {
           title: 'Luxa',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.iosTheme(
-            settings.themeMode == 1 
-                ? Brightness.dark 
-                : settings.themeMode == 2 
-                    ? Brightness.light 
+            settings.themeMode == 1
+                ? Brightness.dark
+                : settings.themeMode == 2
+                    ? Brightness.light
                     : MediaQuery.platformBrightnessOf(context),
-            customFont: settings.customFont
+            customFont: settings.customFont,
+            isAmoled: settings.amoledTheme,
           ),
           home: _buildHome(),
         );
@@ -168,9 +185,17 @@ class _NavItem {
 
 const List<_NavItem> _mainNavItems = [
   _NavItem(icon: FluentIcons.home_24_regular, selectedIcon: FluentIcons.home_24_filled, label: 'Home', screenIndex: 0),
-  _NavItem(icon: FluentIcons.sparkle_24_regular, selectedIcon: FluentIcons.sparkle_24_filled, label: 'Anime', screenIndex: 1),
-  _NavItem(icon: FluentIcons.library_24_regular, selectedIcon: FluentIcons.library_24_filled, label: 'Library', screenIndex: 2),
-  _NavItem(icon: FluentIcons.live_24_regular, selectedIcon: FluentIcons.live_24_filled, label: 'Live', screenIndex: 3),
+  _NavItem(icon: FluentIcons.sparkle_24_regular, selectedIcon: FluentIcons.sparkle_24_filled, label: 'Anime', screenIndex: 2),
+  _NavItem(icon: FluentIcons.library_24_regular, selectedIcon: FluentIcons.library_24_filled, label: 'Library', screenIndex: 3),
+  _NavItem(icon: FluentIcons.image_24_regular, selectedIcon: FluentIcons.image_24_filled, label: 'Arts', screenIndex: 4),
+  _NavItem(icon: FluentIcons.settings_24_regular, selectedIcon: FluentIcons.settings_24_filled, label: 'Settings', screenIndex: 5),
+];
+
+const List<_NavItem> _sidebarNavItems = [
+  _NavItem(icon: FluentIcons.home_24_regular, selectedIcon: FluentIcons.home_24_filled, label: 'Home', screenIndex: 0),
+  _NavItem(icon: FluentIcons.search_24_regular, selectedIcon: FluentIcons.search_24_filled, label: 'Search', screenIndex: 1),
+  _NavItem(icon: FluentIcons.sparkle_24_regular, selectedIcon: FluentIcons.sparkle_24_filled, label: 'Anime', screenIndex: 2),
+  _NavItem(icon: FluentIcons.library_24_regular, selectedIcon: FluentIcons.library_24_filled, label: 'Library', screenIndex: 3),
   _NavItem(icon: FluentIcons.image_24_regular, selectedIcon: FluentIcons.image_24_filled, label: 'Arts', screenIndex: 4),
   _NavItem(icon: FluentIcons.settings_24_regular, selectedIcon: FluentIcons.settings_24_filled, label: 'Settings', screenIndex: 5),
 ];
@@ -186,6 +211,8 @@ class _MainNavigationState extends State<MainNavigation> {
   int _idx = 0;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late final List<Widget> _screens;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -193,30 +220,73 @@ class _MainNavigationState extends State<MainNavigation> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdate());
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowAuth());
     
-    DeepLinkService.instance.init(onTabChange: (idx) {
-      if (mounted) setState(() => _idx = idx);
+    DeepLinkService.instance.init(onTabChange: (idx, [String? query]) {
+      if (mounted) {
+        setState(() {
+          _idx = idx;
+        });
+        _navigatorKey.currentState?.popUntil((r) => r.isFirst);
+        if (idx == 1) {
+          if (query != null) {
+            _searchController.text = query;
+          }
+          Future.delayed(const Duration(milliseconds: 150), () {
+            if (mounted) {
+              _searchFocusNode.requestFocus();
+            }
+          });
+        } else {
+          _searchController.clear();
+          _searchFocusNode.unfocus();
+        }
+      }
     });
 
     _screens = [
       HomeScreen(
-        onSearch: () => Navigator.of(context, rootNavigator: true).push(
-          CupertinoPageRoute(builder: (_) => const SearchScreen()),
-        ),
+        onSearch: _goToSearchTab,
+      ),
+      SearchScreen(
+        controller: _searchController,
+        isTab: true,
       ),
       AnimeScreen(
-        onSearch: () => Navigator.of(context, rootNavigator: true).push(
-          CupertinoPageRoute(builder: (_) => const AnimeSearchScreen()),
-        ),
+        onSearch: _goToSearchTab,
       ),
       LibraryScreen(
-        onSearch: () => Navigator.of(context, rootNavigator: true).push(
-          CupertinoPageRoute(builder: (_) => const SearchScreen()),
-        ),
+        onSearch: _goToSearchTab,
       ),
-      const LiveTvScreen(),
       const ArtsScreen(),
       const SettingsScreen(),
     ];
+  }
+
+  void _goToSearchTab() {
+    _goToTab(1);
+  }
+
+  void _goToTab(int index) {
+    setState(() {
+      _idx = index;
+      _navigatorKey.currentState?.popUntil((r) => r.isFirst);
+    });
+    if (index != 1) {
+      _searchController.clear();
+      _searchFocusNode.unfocus();
+    } else {
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) {
+          _searchFocusNode.requestFocus();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
   }
 
   Widget _buildSidebar(CupertinoThemeData theme) {
@@ -228,7 +298,9 @@ class _MainNavigationState extends State<MainNavigation> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
+        color: isDark
+            ? (SettingsService.instance.amoledTheme ? const Color(0xFF121212) : const Color(0xFF1C1C1E))
+            : const Color(0xFFF2F2F7),
         borderRadius: BorderRadius.circular(12.0),
       ),
       child: Column(
@@ -251,17 +323,14 @@ class _MainNavigationState extends State<MainNavigation> {
           Expanded(
             child: ListView.separated(
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _mainNavItems.length,
+              itemCount: _sidebarNavItems.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, i) {
-                final item = _mainNavItems[i];
-                final active = _idx == i;
+                final item = _sidebarNavItems[i];
+                final active = _idx == item.screenIndex;
 
                 return GestureDetector(
-                  onTap: () => setState(() {
-                    _idx = i;
-                    _navigatorKey.currentState?.popUntil((r) => r.isFirst);
-                  }),
+                  onTap: () => _goToTab(item.screenIndex),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -319,7 +388,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
     if (isWide) {
       return CupertinoPageScaffold(
-        backgroundColor: isDark ? CupertinoColors.black : theme.scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         child: Row(
           children: [
             _buildSidebar(theme),
@@ -328,7 +397,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 margin: const EdgeInsets.fromLTRB(0, 16, 16, 16),
                 decoration: AppTheme.brutalistDecoration(
                   context: context,
-                  color: isDark ? CupertinoColors.black : theme.scaffoldBackgroundColor,
+                  color: theme.scaffoldBackgroundColor,
                   borderRadius: 12.0,
                   hasShadow: false,
                   hasBorder: false,
@@ -343,9 +412,10 @@ class _MainNavigationState extends State<MainNavigation> {
     }
 
     return CupertinoPageScaffold(
-      child: Column(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      child: Stack(
         children: [
-          Expanded(child: _buildNavigator()),
+          _buildNavigator(),
           _buildBottomBar(theme),
         ],
       ),
@@ -375,64 +445,261 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget _buildBottomBar(CupertinoThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final floatBottom = 12.0 + bottomPadding;
+    final isSearchActive = _idx == 1;
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final showNavBar = (!keyboardVisible || isSearchActive);
 
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          height: 50 + bottomPadding,
-          padding: EdgeInsets.only(bottom: bottomPadding),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xCC0A0A0A) : const Color(0xCCFFFFFF),
-            border: Border(
-              top: BorderSide(
-                color: isDark ? const Color(0x15FFFFFF) : const Color(0x15000000),
-                width: 0.5,
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: floatBottom,
+      height: 56,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: showNavBar ? 1.0 : 0.0,
+        child: IgnorePointer(
+          ignoring: !showNavBar,
+          child: Row(
+            children: [
+              // Main pill: Home, Anime, Library, Arts, Settings OR Search input
+              Expanded(
+                child: Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: CupertinoColors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                        blurRadius: 20,
+                        spreadRadius: -4,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: (isDark ? CupertinoColors.black : CupertinoColors.white).withValues(alpha: isDark ? 0.20 : 0.35),
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: CupertinoColors.white.withValues(alpha: isDark ? 0.12 : 0.20),
+                            width: 0.75,
+                          ),
+                        ),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: ScaleTransition(
+                                scale: Tween<double>(begin: 0.96, end: 1.0).animate(animation),
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: isSearchActive
+                              ? _buildSearchTextField(context)
+                              : _buildNavButtons(theme),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Search circle / Home Button
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: CupertinoColors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                      blurRadius: 20,
+                      spreadRadius: -4,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ClipOval(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        if (isSearchActive) {
+                          _goToTab(0); // Go to Home
+                        } else {
+                          _goToSearchTab();
+                        }
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: (isDark ? CupertinoColors.black : CupertinoColors.white).withValues(alpha: isDark ? 0.20 : 0.35),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: CupertinoColors.white.withValues(alpha: isDark ? 0.12 : 0.20),
+                            width: 0.75,
+                          ),
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 300),
+                                transitionBuilder: (child, animation) {
+                                  return ScaleTransition(
+                                    scale: animation,
+                                    child: FadeTransition(opacity: animation, child: child),
+                                  );
+                                },
+                                child: isSearchActive
+                                    ? Icon(
+                                        FluentIcons.home_24_regular,
+                                        key: const ValueKey('home_button_icon'),
+                                        color: (isDark ? CupertinoColors.white : CupertinoColors.black).withValues(alpha: 0.6),
+                                        size: 18,
+                                      )
+                                    : Icon(
+                                        FluentIcons.search_24_regular,
+                                        key: const ValueKey('search_button_icon'),
+                                        color: (isDark ? CupertinoColors.white : CupertinoColors.black).withValues(alpha: 0.6),
+                                        size: 18,
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavButtons(CupertinoThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    return Row(
+      key: const ValueKey('nav_buttons_row'),
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: List.generate(_mainNavItems.length, (i) {
+        final item = _mainNavItems[i];
+        final active = _idx == item.screenIndex;
+        final activeColor = theme.primaryColor;
+        final inactiveColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF999999);
+
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => _goToTab(item.screenIndex),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: active
+                    ? RadialGradient(
+                        colors: [
+                          activeColor.withValues(alpha: isDark ? 0.15 : 0.10),
+                          activeColor.withValues(alpha: 0.0),
+                        ],
+                        radius: 0.85,
+                      )
+                    : null,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    active ? item.selectedIcon : item.icon,
+                    color: active ? activeColor : inactiveColor,
+                    size: 18,
+                  ),
+                  const SizedBox(height: 0.5),
+                  Text(
+                    item.label,
+                    style: GoogleFonts.inter(
+                      color: active ? activeColor : inactiveColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 8.5,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_mainNavItems.length, (i) {
-              final item = _mainNavItems[i];
-              final active = _idx == i;
-              final activeColor = theme.primaryColor;
-              final inactiveColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF999999);
-              
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() {
-                    _idx = i;
-                    _navigatorKey.currentState?.popUntil((r) => r.isFirst);
-                  }),
-                  behavior: HitTestBehavior.opaque,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 6),
-                      Icon(
-                        active ? item.selectedIcon : item.icon,
-                        color: active ? activeColor : inactiveColor,
-                        size: 20,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.label,
-                        style: GoogleFonts.inter(
-                          color: active ? activeColor : inactiveColor,
-                          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                          fontSize: 9,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                  ),
-                ),
-              );
-            }),
+        );
+      }),
+    );
+  }
+
+  Widget _buildSearchTextField(BuildContext context) {
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      key: const ValueKey('search_text_field'),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: CupertinoTextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        style: TextStyle(
+          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+        ),
+        cursorColor: theme.primaryColor,
+        placeholder: 'Search movies, TV shows & anime...',
+        placeholderStyle: TextStyle(
+          color: (isDark ? CupertinoColors.white : CupertinoColors.black).withValues(alpha: 0.4),
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: null,
+        prefix: Padding(
+          padding: const EdgeInsets.only(left: 0, right: 8),
+          child: Icon(
+            FluentIcons.search_24_regular,
+            color: (isDark ? CupertinoColors.white : CupertinoColors.black).withValues(alpha: 0.6),
+            size: 20,
           ),
+        ),
+        suffix: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _searchController,
+          builder: (context, value, _) {
+            if (value.text.isEmpty) return const SizedBox.shrink();
+            return GestureDetector(
+              onTap: () {
+                _searchController.clear();
+                _searchFocusNode.requestFocus();
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(
+                  FluentIcons.dismiss_circle_24_filled,
+                  color: (isDark ? CupertinoColors.white : CupertinoColors.black).withValues(alpha: 0.4),
+                  size: 18,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

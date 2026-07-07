@@ -1,6 +1,9 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show CircularProgressIndicator, Material, MaterialType;
 import 'dart:ui';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+
+import '../services/settings_service.dart';
 
 extension CupertinoThemeDataX on CupertinoThemeData {
   CupertinoColorScheme get colorScheme => CupertinoColorScheme(this);
@@ -13,14 +16,40 @@ class CupertinoColorScheme {
   CupertinoThemeData get theme => _theme;
 
   Color get primary => _theme.primaryColor;
-  Color get onPrimary => CupertinoColors.white;
+  Color get onPrimary => CupertinoColors.black;
   Color get onSurface => _theme.brightness == Brightness.dark ? CupertinoColors.white : CupertinoColors.black;
-  Color get onSurfaceVariant => _theme.brightness == Brightness.dark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2;
-  Color get surface => _theme.brightness == Brightness.dark ? const Color(0xFF1C1C1E) : const Color(0xFFFAFAFA);
-  Color get surfaceContainerHigh => _theme.brightness == Brightness.dark ? const Color(0xFF2C2C2E) : const Color(0xFFF0F0F0);
-  Color get surfaceContainerHighest => _theme.brightness == Brightness.dark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5EA);
-  Color get surfaceContainerLowest => _theme.brightness == Brightness.dark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
-  Color get outlineVariant => _theme.brightness == Brightness.dark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+  Color get onSurfaceVariant => _theme.brightness == Brightness.dark ? const Color(0xFF9E9E9E) : CupertinoColors.systemGrey2;
+  
+  Color get surface {
+    if (_theme.brightness != Brightness.dark) return const Color(0xFFFAFAFA);
+    final isAmoled = SettingsService.instance.amoledTheme;
+    return isAmoled ? const Color(0xFF121212) : const Color(0xFF1C1C1E);
+  }
+  
+  Color get surfaceContainerHigh {
+    if (_theme.brightness != Brightness.dark) return const Color(0xFFF0F0F0);
+    final isAmoled = SettingsService.instance.amoledTheme;
+    return isAmoled ? const Color(0xFF1E1E1E) : const Color(0xFF2C2C2E);
+  }
+  
+  Color get surfaceContainerHighest {
+    if (_theme.brightness != Brightness.dark) return const Color(0xFFE5E5EA);
+    final isAmoled = SettingsService.instance.amoledTheme;
+    return isAmoled ? const Color(0xFF2C2C2E) : const Color(0xFF3A3A3C);
+  }
+  
+  Color get surfaceContainerLowest {
+    if (_theme.brightness != Brightness.dark) return const Color(0xFFFFFFFF);
+    final isAmoled = SettingsService.instance.amoledTheme;
+    return isAmoled ? const Color(0xFF000000) : const Color(0xFF121212);
+  }
+  
+  Color get outlineVariant {
+    if (_theme.brightness != Brightness.dark) return const Color(0xFFE5E5EA);
+    final isAmoled = SettingsService.instance.amoledTheme;
+    return isAmoled ? const Color(0xFF1E1E1E) : const Color(0xFF2C2C2E);
+  }
+  
   Color get primaryContainer => _theme.primaryColor.withValues(alpha: 0.15);
   Color get error => CupertinoColors.systemRed;
   Color get onErrorContainer => CupertinoColors.white;
@@ -139,7 +168,9 @@ class IOSSettingsGroup extends StatelessWidget {
           ),
         Container(
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
+            color: isDark
+                ? (SettingsService.instance.amoledTheme ? const Color(0xFF121212) : const Color(0xFF1C1C1E))
+                : CupertinoColors.white,
             borderRadius: BorderRadius.circular(10),
           ),
           margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -302,19 +333,32 @@ class IOSLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     
     return Center(
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xCC2C2C2E) : const Color(0xCCFFFFFF),
+          color: isDark
+              ? (SettingsService.instance.amoledTheme ? const Color(0xCC121212) : const Color(0xCC2C2C2E))
+              : const Color(0xCCFFFFFF),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CupertinoActivityIndicator(radius: size / 2.5),
+            SizedBox(
+              width: size,
+              height: size,
+              child: Material(
+                type: MaterialType.transparency,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
+                ),
+              ),
+            ),
             if (message != null) ...[
               const SizedBox(height: 12),
               Text(
@@ -386,7 +430,10 @@ class CompactActionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
-    final bgColor = isDark ? const Color(0xEE1C1C1E) : const Color(0xEEE5E5EA);
+    final isAmoled = SettingsService.instance.amoledTheme;
+    final bgColor = isDark
+        ? (isAmoled ? const Color(0xEE121212) : const Color(0xEE1C1C1E))
+        : const Color(0xEEE5E5EA);
     final screenH = MediaQuery.of(context).size.height;
     // Cap the actions pane to 55% of the screen height so the sheet never
     // takes over the full display. Content scrolls if it overflows.
@@ -481,7 +528,9 @@ class CompactActionSheet extends StatelessWidget {
                     filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                     child: Container(
                       width: double.infinity,
-                      color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
+                      color: isDark
+                          ? (isAmoled ? const Color(0xFF121212) : const Color(0xFF1C1C1E))
+                          : CupertinoColors.white,
                       child: cancelButton!,
                     ),
                   ),

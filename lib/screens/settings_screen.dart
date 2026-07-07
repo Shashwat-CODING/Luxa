@@ -1,29 +1,101 @@
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/settings_service.dart';
 import '../services/auth_service.dart';
 import '../services/sync_service.dart';
 import '../screens/auth_screen.dart';
 import '../widgets/ios_widgets.dart';
+import '../theme/app_theme.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObserver {
+  bool _ignoreBatteryOptimizations = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkBatteryOptimization();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkBatteryOptimization();
+    }
+  }
+
+  Future<void> _checkBatteryOptimization() async {
+    if (Platform.isAndroid) {
+      final isIgnored = await Permission.ignoreBatteryOptimizations.isGranted;
+      if (mounted) {
+        setState(() {
+          _ignoreBatteryOptimizations = isIgnored;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleBatteryOptimization(bool val) async {
+    if (Platform.isAndroid) {
+      if (val) {
+        final status = await Permission.ignoreBatteryOptimizations.request();
+        setState(() {
+          _ignoreBatteryOptimizations = status.isGranted;
+        });
+      } else {
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Battery Optimizations'),
+            content: const Text('To restrict background battery usage, please disable this option in device settings.'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.pop(context),
+              ),
+              CupertinoDialogAction(
+                child: const Text('Open Settings'),
+                onPressed: () {
+                  Navigator.pop(context);
+                  openAppSettings();
+                },
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = CupertinoTheme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? CupertinoColors.black : const Color(0xFFF2F2F7),
+      backgroundColor: CupertinoColors.transparent,
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           CupertinoSliverNavigationBar(
             transitionBetweenRoutes: false,
-            largeTitle: Text('Settings'),
+            largeTitle: const Text('Settings'),
             border: null,
           ),
           SliverToBoxAdapter(
@@ -97,14 +169,23 @@ class SettingsScreen extends StatelessWidget {
                       children: [
                         IOSSettingsTile(
                           icon: FluentIcons.brightness_high_24_regular,
-                          iconColor: CupertinoColors.systemPurple,
+                          iconColor: theme.primaryColor,
                           title: 'Theme Mode',
                           subtitle: _getThemeModeLabel(settings.themeMode),
                           onTap: () => _showThemePicker(context),
                         ),
+                        IOSSettingsSwitch(
+                          icon: FluentIcons.weather_moon_24_regular,
+                          iconColor: AppTheme.secondaryGold,
+                          title: 'AMOLED Black',
+                          value: settings.amoledTheme,
+                          onChanged: (val) {
+                            settings.setAmoledTheme(val);
+                          },
+                        ),
                         IOSSettingsTile(
                           icon: FluentIcons.text_font_24_regular,
-                          iconColor: CupertinoColors.systemBlue,
+                          iconColor: AppTheme.secondaryGold,
                           title: 'Custom Font',
                           subtitle: settings.customFont,
                           onTap: () => _showFontPicker(context),
@@ -115,6 +196,14 @@ class SettingsScreen extends StatelessWidget {
                     IOSSettingsGroup(
                       title: 'System',
                       children: [
+                        if (Platform.isAndroid)
+                          IOSSettingsSwitch(
+                            icon: FluentIcons.battery_charge_24_regular,
+                            iconColor: theme.primaryColor,
+                            title: 'Ignore Battery Optimizations',
+                            value: _ignoreBatteryOptimizations,
+                            onChanged: _toggleBatteryOptimization,
+                          ),
                         IOSSettingsTile(
                           icon: FluentIcons.delete_24_regular,
                           iconColor: CupertinoColors.systemRed,
@@ -144,14 +233,14 @@ class SettingsScreen extends StatelessWidget {
                       children: [
                         IOSSettingsTile(
                           icon: FluentIcons.info_24_regular,
-                          iconColor: CupertinoColors.systemGrey,
+                          iconColor: AppTheme.secondaryGold,
                           title: 'App Version',
                           subtitle: settings.appVersion,
                           onTap: () {},
                         ),
                         IOSSettingsTile(
                           icon: FluentIcons.heart_24_filled,
-                          iconColor: CupertinoColors.systemRed,
+                          iconColor: theme.primaryColor,
                           title: 'Luxa Premium',
                           subtitle: 'You are using version 2.6.0',
                           onTap: () {},
@@ -172,6 +261,7 @@ class SettingsScreen extends StatelessWidget {
   String _getThemeModeLabel(int mode) {
     if (mode == 1) return 'Dark';
     if (mode == 2) return 'Light';
+    if (mode == 3) return 'AMOLED Black';
     return 'System Default';
   }
 

@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/media_item.dart';
 import '../models/api_models.dart';
-import '../models/channel.dart';
 import '../services/auth_service.dart';
 import '../main.dart';
 
@@ -14,7 +13,7 @@ class ApiService {
   static final ApiService instance = ApiService._();
 
   // ── APP CONFIG ──────────────────────────────────────────────────────────
-  static const String appVersion = 'v2.6.0';
+  static const String appVersion = 'v2.7.0';
   static const String websiteUrl = 'https://luxa-app.vercel.app';
 
   // ── LOGGING ─────────────────────────────────────────────────────────────
@@ -34,9 +33,6 @@ class ApiService {
 
   String get streamingBase => '$_apiBase/media';
   String get downloadBase => '$_apiBase/download';
-
-  // IPTV base - now empty by default
-  static const String _iptvBase = 'https://iptvwrapper.antig9469.workers.dev';
 
   // ── UPDATE CONFIG ────────────────────────────────────────────────────────
   static const String _repoOwner = 'Shashwat-CODING';
@@ -392,164 +388,6 @@ class ApiService {
   Future<List<MediaItem>> getSimilarTv(int id) =>
       _fetchTmdbTv('/tv/$id/similar');
 
-  // ── IPTV METHODS ──────────────────────────────────────────────────────────
-
-  Future<List<CountryEntry>> fetchCountries() async {
-    final url = '$_iptvBase/countries';
-    _logReq(url);
-    try {
-      final res = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 15));
-      _logRes(url, res.statusCode);
-      if (res.statusCode == 200) {
-        final List list = jsonDecode(res.body);
-        return list.map((item) => CountryEntry.fromJson(item)).toList()
-          ..sort((a, b) => a.name.compareTo(b.name));
-      }
-    } catch (e) {
-      _logErr(url, e);
-    }
-    return [];
-  }
-
-  Future<List<RegionEntry>> fetchRegions() async {
-    final url = '$_iptvBase/regions';
-    _logReq(url);
-    try {
-      final res = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 15));
-      _logRes(url, res.statusCode);
-      if (res.statusCode == 200) {
-        final List list = jsonDecode(res.body);
-        return list.map((item) => RegionEntry.fromJson(item)).toList()
-          ..sort((a, b) => a.name.compareTo(b.name));
-      }
-    } catch (e) {
-      _logErr(url, e);
-    }
-    return [];
-  }
-
-  Future<List<CategoryEntry>> fetchCategories() async {
-    final url = '$_iptvBase/categories';
-    _logReq(url);
-    try {
-      final res = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 15));
-      _logRes(url, res.statusCode);
-      if (res.statusCode == 200) {
-        final List list = jsonDecode(res.body);
-        return list.map((item) => CategoryEntry.fromJson(item)).toList()
-          ..sort((a, b) => a.name.compareTo(b.name));
-      }
-    } catch (e) {
-      _logErr(url, e);
-    }
-    return [];
-  }
-
-  Future<List<LanguageEntry>> fetchLanguages() async {
-    final url = '$_iptvBase/languages';
-    _logReq(url);
-    try {
-      final res = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 15));
-      _logRes(url, res.statusCode);
-      if (res.statusCode == 200) {
-        final List list = jsonDecode(res.body);
-        return list.map((item) => LanguageEntry.fromJson(item)).toList()
-          ..sort((a, b) => a.name.compareTo(b.name));
-      }
-    } catch (e) {
-      _logErr(url, e);
-    }
-    return [];
-  }
-
-  Future<IptvResponse> fetchChannelsByCountry(
-    String code, {
-    int page = 1,
-    int perPage = 100,
-  }) async {
-    final url = '$_iptvBase/country/$code?page=$page&per_page=$perPage';
-    _logReq(url);
-    try {
-      final res = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 20));
-      _logRes(url, res.statusCode);
-      if (res.statusCode == 200)
-        return IptvResponse.fromJson(jsonDecode(res.body));
-    } catch (e) {
-      _logErr(url, e);
-    }
-    return IptvResponse.empty();
-  }
-
-  Future<IptvResponse> fetchChannelsByRegion(
-    String code, {
-    int page = 1,
-    int perPage = 100,
-  }) async {
-    final url = '$_iptvBase/region/$code?page=$page&per_page=$perPage';
-    _logReq(url);
-    try {
-      final res = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 20));
-      _logRes(url, res.statusCode);
-      if (res.statusCode == 200)
-        return IptvResponse.fromJson(jsonDecode(res.body));
-    } catch (e) {
-      _logErr(url, e);
-    }
-    return IptvResponse.empty();
-  }
-
-  Future<IptvResponse> searchChannels(
-    String query, {
-    String? country,
-    String? category,
-    int page = 1,
-    int perPage = 100,
-  }) async {
-    try {
-      var url = '$_iptvBase/search?q=$query&page=$page&per_page=$perPage';
-      if (country != null) url += '&country=$country';
-      if (category != null) url += '&category=$category';
-      _logReq(url);
-      final res = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 20));
-      _logRes(url, res.statusCode);
-      if (res.statusCode == 200)
-        return IptvResponse.fromJson(jsonDecode(res.body));
-    } catch (e) {
-      _logErr(query, e);
-    }
-    return IptvResponse.empty();
-  }
-
-  Future<Channel?> getChannelDetail(String id) async {
-    final url = '$_iptvBase/channel/$id';
-    _logReq(url);
-    try {
-      final res = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 15));
-      _logRes(url, res.statusCode);
-      if (res.statusCode == 200) {
-        return Channel.fromJson(jsonDecode(res.body));
-      }
-    } catch (e) {
-      _logErr(url, e);
-    }
-    return null;
-  }
 
   // ── UPDATE METHODS ───────────────────────────────────────────────────────
 
@@ -571,7 +409,7 @@ class ApiService {
           return {
             'version': latestTag,
             'changelog': data['body'],
-            'url': '$websiteUrl/#download',
+            'url': data['html_url'],
           };
         }
       }

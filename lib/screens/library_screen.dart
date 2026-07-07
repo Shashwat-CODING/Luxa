@@ -13,6 +13,7 @@ import 'detail_screen.dart';
 import 'player_screen.dart';
 import '../widgets/ios_widgets.dart';
 import '../theme/app_theme.dart';
+import '../services/settings_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -33,7 +34,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? AppTheme.pureBlack : AppTheme.creamBg,
+      backgroundColor: CupertinoColors.transparent,
       child: ListenableBuilder(
         listenable: Listenable.merge([
           WatchHistory.listChanged,
@@ -48,13 +49,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
               CupertinoSliverNavigationBar(
                 transitionBetweenRoutes: false,
                 largeTitle: Text('MY LIBRARY', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-                backgroundColor: isDark ? const Color(0xFF0A0A0A) : AppTheme.pureWhite,
-                border: Border(
-                  bottom: BorderSide(
-                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                    width: 2.0,
-                  ),
-                ),
+                backgroundColor: CupertinoColors.transparent,
+                border: null,
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -64,11 +60,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         padding: const EdgeInsets.all(6),
                         decoration: AppTheme.brutalistDecoration(
                           context: context,
-                          color: isDark ? AppTheme.darkSlate : AppTheme.neonYellow,
+                          color: isDark
+                              ? (SettingsService.instance.isAmoled ? AppTheme.amoledSurface : AppTheme.darkSlate)
+                              : AppTheme.neonYellow,
                           borderRadius: 4,
                           shadowOffset: 2.0,
                         ),
-                        child: const Icon(FluentIcons.search_24_regular, size: 18),
+                        child: Icon(
+                          FluentIcons.search_24_regular,
+                          size: 18,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        ),
                       ),
                     ),
                   ],
@@ -82,7 +84,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     child: Container(
                       decoration: AppTheme.brutalistDecoration(
                         context: context,
-                        color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                        color: isDark
+                            ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+                            : const Color(0x77FFFFFF),
                         borderRadius: 4.0,
                         shadowOffset: 2.0,
                       ),
@@ -90,7 +94,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       child: CupertinoSlidingSegmentedControl<int>(
                         groupValue: _selectedSegment,
                         backgroundColor: CupertinoColors.transparent,
-                        thumbColor: isDark ? AppTheme.neonYellow : AppTheme.pureBlack,
+                        thumbColor: AppTheme.neonYellow,
                         children: {
                           0: _buildTabText('Watchlist', theme, _selectedSegment == 0),
                           1: _buildTabText('History', theme, _selectedSegment == 1),
@@ -215,7 +219,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
         padding: const EdgeInsets.all(12),
         decoration: AppTheme.brutalistDecoration(
           context: context,
-          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          color: isDark
+              ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+              : const Color(0x77FFFFFF),
           borderRadius: 12.0,
           shadowOffset: 2.5,
         ),
@@ -254,7 +260,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     const SizedBox(height: 4),
                     LinearProgressIndicator(
                       value: item.progress,
-                      backgroundColor: isDark ? const Color(0xFF222222) : CupertinoColors.systemGrey5,
+                      backgroundColor: CupertinoColors.transparent,
                       valueColor: AlwaysStoppedAnimation<Color>(AppTheme.neonYellow),
                       minHeight: 8,
                     ),
@@ -353,7 +359,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
           child: Container(
             decoration: AppTheme.brutalistDecoration(
               context: context,
-              color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+              color: isDark
+                  ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+                  : const Color(0x77FFFFFF),
               borderRadius: 12.0,
               shadowOffset: 2.5,
             ),
@@ -405,7 +413,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
         padding: const EdgeInsets.all(12),
         decoration: AppTheme.brutalistDecoration(
           context: context,
-          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          color: isDark
+              ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+              : const Color(0x77FFFFFF),
           borderRadius: 12.0,
           shadowOffset: 2.5,
         ),
@@ -488,7 +498,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
         padding: const EdgeInsets.all(16),
         decoration: AppTheme.brutalistDecoration(
           context: context,
-          color: isDark ? AppTheme.darkSlate : AppTheme.neonYellow,
+          color: isDark
+              ? (SettingsService.instance.isAmoled ? AppTheme.amoledSurface : AppTheme.darkSlate)
+              : AppTheme.neonYellow,
           borderRadius: 4.0,
           shadowOffset: 3.0,
         ),
@@ -524,16 +536,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  void _openDetail(MediaItem item) async {
-    MediaDetail? detail;
-    if (item.mediaType == 'anime') {
-      detail = await _api.getAnimeDetail(item);
-    } else {
-      detail = item.mediaType == 'movie' ? await _api.getMovieDetail(item.id) : await _api.getTvDetail(item.id);
-    }
-    if (detail != null && mounted) {
-      Navigator.of(context, rootNavigator: true).push(CupertinoPageRoute(builder: (_) => DetailScreen(item: detail!)));
-    }
+  void _openDetail(MediaItem item) {
+    Navigator.of(context, rootNavigator: true).push(
+      CupertinoPageRoute(builder: (_) => DetailScreen(item: item)),
+    );
   }
 
   void _showCreateCollectionDialog() {
@@ -580,17 +586,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
           fontSize: 11,
           fontWeight: FontWeight.w900,
           color: selected
-              ? (isDark ? CupertinoColors.black : CupertinoColors.white)
+              ? CupertinoColors.black
               : (isDark ? const Color(0xFF8E8E93) : const Color(0xFF6E6E73)),
         ),
       ),
     );
   }
 
-  void _showSeriesProgressDetail(SeriesProgress progress, CupertinoThemeData theme) async {
-    final detail = await _api.getTvDetail(progress.seriesId);
-    if (detail == null || !mounted) return;
-    Navigator.of(context, rootNavigator: true).push(CupertinoPageRoute(builder: (_) => DetailScreen(item: detail)));
+  void _showSeriesProgressDetail(SeriesProgress progress, CupertinoThemeData theme) {
+    final item = MediaItem(
+      id: progress.seriesId,
+      title: progress.title,
+      overview: '',
+      posterPath: progress.posterPath,
+      backdropPath: '',
+      voteAverage: 0.0,
+      releaseDate: '',
+      mediaType: 'tv',
+    );
+    Navigator.of(context, rootNavigator: true).push(
+      CupertinoPageRoute(builder: (_) => DetailScreen(item: item)),
+    );
   }
 
 }

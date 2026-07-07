@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,8 +10,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:wallpaper_manager_plus/wallpaper_manager_plus.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:media_store_plus/media_store_plus.dart';
 import '../widgets/ios_widgets.dart';
 import '../theme/app_theme.dart';
+import '../services/settings_service.dart';
 
 class ArtsScreen extends StatefulWidget {
   const ArtsScreen({super.key});
@@ -112,10 +116,8 @@ class _ArtsScreenState extends State<ArtsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = CupertinoTheme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final width = MediaQuery.of(context).size.width;
     
-    // Responsive column count: 2 for phone, more for tablet/desktop
     int crossAxisCount = 2;
     if (width > 600) crossAxisCount = 3;
     if (width > 1000) crossAxisCount = 4;
@@ -129,7 +131,7 @@ class _ArtsScreenState extends State<ArtsScreen> {
           CupertinoSliverNavigationBar(
             transitionBetweenRoutes: false,
             largeTitle: Text('ARTS', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: -1.0)),
-            backgroundColor: isDark ? const Color(0xCC000000) : const Color(0xCCF2F2F7),
+            backgroundColor: CupertinoColors.transparent,
             border: null,
             trailing: CupertinoButton(
               padding: EdgeInsets.zero,
@@ -161,23 +163,18 @@ class _ArtsScreenState extends State<ArtsScreen> {
           else
             SliverPadding(
               padding: const EdgeInsets.all(8),
-              sliver: SliverGrid(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.0,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final photo = _photos[index];
-                    return _ArtCard(
-                      photo: photo,
-                      onTap: () => _showPhotoDetail(photo),
-                    );
-                  },
-                  childCount: _photos.length,
-                ),
+              sliver: SliverMasonryGrid.count(
+                crossAxisCount: crossAxisCount,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                itemBuilder: (context, index) {
+                  final photo = _photos[index];
+                  return _ArtCard(
+                    photo: photo,
+                    onTap: () => _showPhotoDetail(photo),
+                  );
+                },
+                childCount: _photos.length,
               ),
             ),
           if (_loadingMore)
@@ -211,12 +208,16 @@ class _ArtCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double width = (photo['width'] as num).toDouble();
+    final double height = (photo['height'] as num).toDouble();
+    final double aspectRatio = width / height;
+
     return GestureDetector(
       onTap: onTap,
-      child: AspectRatio(
-        aspectRatio: 1.0,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12.0),
+        child: AspectRatio(
+          aspectRatio: aspectRatio.clamp(0.6, 1.8),
           child: Stack(
             children: [
               CachedNetworkImage(
@@ -246,25 +247,46 @@ class ArtDetailScreen extends StatelessWidget {
 
   Future<void> _downloadImage(BuildContext context) async {
     try {
-      if (Platform.isAndroid || Platform.isIOS) {
+      if (Platform.isAndroid) {
         final status = await Permission.storage.request();
-        if (!status.isGranted && !await Permission.photos.request().isGranted) {
-          _showToast(context, 'Permission denied');
-          return;
+        if (!status.isGranted) {
+          // Continue anyway, as MediaStore API on Android 10+ handles this without storage permission.
         }
       }
 
       final url = photo['src']['original'];
       final tempDir = await getTemporaryDirectory();
-      final path = '${tempDir.path}/${photo['id']}.jpg';
+      final fileName = 'StreamFlix_${photo['id']}.jpg';
+      final path = '${tempDir.path}/$fileName';
       
+      _showToast(context, 'Downloading image...');
       await Dio().download(url, path);
       
-      // For Windows/Linux, we just save to downloads or show path
-      // For mobile, we'd use media_store_plus or gallery_saver
-      // Since we have media_store_plus, let's try (though it needs more setup usually)
-      
-      _showToast(context, 'Saved to gallery');
+      if (Platform.isAndroid) {
+        MediaStore.appFolder = "StreamFlix";
+        final response = await MediaStore().saveFile(
+          tempFilePath: path,
+          dirType: DirType.download,
+          dirName: DirType.download.defaults,
+        );
+        if (response != null) {
+          _showToast(context, 'Saved to Downloads folder');
+        } else {
+          _showToast(context, 'Failed to save to Downloads');
+        }
+      } else {
+        final downloadsDir = await getDownloadsDirectory();
+        if (downloadsDir != null) {
+          final targetPath = '${downloadsDir.path}/$fileName';
+          await File(path).copy(targetPath);
+          _showToast(context, 'Saved to Downloads folder');
+        } else {
+          final docDir = await getApplicationDocumentsDirectory();
+          final targetPath = '${docDir.path}/$fileName';
+          await File(path).copy(targetPath);
+          _showToast(context, 'Saved to Documents folder');
+        }
+      }
     } catch (e) {
       _showToast(context, 'Download failed: $e');
     }
@@ -276,7 +298,6 @@ class ArtDetailScreen extends StatelessWidget {
       
       _showToast(context, 'Downloading wallpaper...');
       
-      // Use cache manager to download the file first
       final file = await DefaultCacheManager().getSingleFile(url);
       
       if (context.mounted) {
@@ -317,6 +338,8 @@ class ArtDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.black,
       child: Stack(
@@ -325,53 +348,29 @@ class ArtDetailScreen extends StatelessWidget {
           InteractiveViewer(
             minScale: 1.0,
             maxScale: 4.0,
-            child: CachedNetworkImage(
-              imageUrl: photo['src']['original'],
-              fit: BoxFit.cover,
-              placeholder: (_, __) => const Center(child: CupertinoActivityIndicator(color: CupertinoColors.white)),
-            ),
-          ),
-          // Gradient Overlay for visibility
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      CupertinoColors.black.withValues(alpha: 0.4),
-                      CupertinoColors.transparent,
-                      CupertinoColors.transparent,
-                      CupertinoColors.black.withValues(alpha: 0.6),
-                    ],
-                    stops: const [0.0, 0.2, 0.7, 1.0],
-                  ),
-                ),
+            child: Center(
+              child: CachedNetworkImage(
+                imageUrl: photo['src']['original'],
+                fit: BoxFit.contain,
+                placeholder: (_, __) => const Center(child: CupertinoActivityIndicator(color: CupertinoColors.white)),
               ),
             ),
           ),
           Positioned(
             top: 44,
             left: 16,
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.neonYellow,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: CupertinoColors.black, width: 2.0),
-                boxShadow: const [
-                  BoxShadow(
-                    color: CupertinoColors.black,
-                    offset: Offset(2.0, 2.0),
-                    blurRadius: 0,
+            child: ClipOval(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  color: CupertinoColors.black.withValues(alpha: 0.5),
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.all(8),
+                    minSize: 0,
+                    onPressed: () => Navigator.pop(context),
+                    child: const Icon(FluentIcons.chevron_left_24_regular, color: CupertinoColors.white, size: 24),
                   ),
-                ],
-              ),
-              child: CupertinoButton(
-                padding: const EdgeInsets.all(8),
-                minSize: 0,
-                onPressed: () => Navigator.pop(context),
-                child: const Icon(FluentIcons.chevron_left_24_regular, color: CupertinoColors.black, size: 24),
+                ),
               ),
             ),
           ),
@@ -379,104 +378,116 @@ class ArtDetailScreen extends StatelessWidget {
             bottom: 60,
             left: 24,
             right: 24,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: AppTheme.brutalistDecoration(
-                context: context,
-                color: theme.brightness == Brightness.dark ? AppTheme.darkSlate : AppTheme.creamBg,
-                borderRadius: 8.0,
-                shadowOffset: 4.5,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'BY ${photo['photographer']}'.toUpperCase(),
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: theme.brightness == Brightness.dark ? CupertinoColors.white : CupertinoColors.black,
-                      decoration: TextDecoration.none,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: (isDark 
+                        ? (SettingsService.instance.isAmoled ? CupertinoColors.black : const Color(0xCC1C1C1E))
+                        : const Color(0xCCFFFFFF)).withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: CupertinoColors.white.withValues(alpha: isDark ? 0.08 : 0.15),
+                      width: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'PROVIDED BY PEXELS',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: CupertinoColors.systemGrey,
-                      decoration: TextDecoration.none,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: () => _downloadImage(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: AppTheme.brutalistDecoration(
-                              context: context,
-                              color: CupertinoColors.white,
-                              borderRadius: 4.0,
-                              shadowOffset: 2.0,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(FluentIcons.arrow_download_24_regular, size: 20, color: CupertinoColors.black),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'SAVE',
-                                  style: GoogleFonts.spaceGrotesk(
-                                    color: CupertinoColors.black,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                      Text(
+                        'BY ${photo['photographer']}'.toUpperCase(),
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                          decoration: TextDecoration.none,
                         ),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: () => _setWallpaper(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: AppTheme.brutalistDecoration(
-                              context: context,
-                              color: AppTheme.neonYellow,
-                              borderRadius: 4.0,
-                              shadowOffset: 2.0,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(FluentIcons.phone_24_regular, size: 20, color: CupertinoColors.black),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'WALLPAPER',
-                                  style: GoogleFonts.spaceGrotesk(
-                                    color: CupertinoColors.black,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 13,
-                                  ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'PROVIDED BY PEXELS',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: CupertinoButton(
+                              padding: EdgeInsets.zero,
+                              onPressed: () => _downloadImage(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? CupertinoColors.white.withValues(alpha: 0.1)
+                                      : CupertinoColors.black.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      FluentIcons.arrow_download_24_regular,
+                                      size: 20,
+                                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'SAVE',
+                                      style: GoogleFonts.spaceGrotesk(
+                                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: CupertinoButton(
+                              padding: EdgeInsets.zero,
+                              onPressed: () => _setWallpaper(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: theme.primaryColor,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(FluentIcons.phone_24_regular, size: 20, color: CupertinoColors.black),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'WALLPAPER',
+                                      style: GoogleFonts.spaceGrotesk(
+                                        color: CupertinoColors.black,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

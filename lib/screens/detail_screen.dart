@@ -11,15 +11,11 @@ import '../services/bookmark_service.dart';
 import '../services/ad_service.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../widgets/native_ad_widget.dart';
-import '../widgets/banner_ad_widget.dart';
-import '../models/api_models.dart';
-import '../services/streaming_service.dart';
 import 'anime_player_screen.dart';
 import 'player_screen.dart';
-import '../services/collection_service.dart';
 import '../widgets/ios_widgets.dart';
 import '../theme/app_theme.dart';
+import '../services/settings_service.dart';
 
 class DetailScreen extends StatefulWidget {
   final MediaItem item;
@@ -86,14 +82,15 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = CupertinoTheme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     if (_loading) {
       return CupertinoPageScaffold(
-        backgroundColor: isDark ? AppTheme.pureBlack : AppTheme.creamBg,
+        backgroundColor: theme.scaffoldBackgroundColor,
         child: const Center(child: IOSLoading(message: 'Gathering metadata...')),
       );
     }
+
+    final isDark = theme.brightness == Brightness.dark;
 
     final item = _detail ?? MediaDetail(
       id: widget.item.id,
@@ -109,7 +106,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? AppTheme.pureBlack : AppTheme.creamBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -186,9 +183,12 @@ class _DetailScreenState extends State<DetailScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: AppTheme.brutalistDecoration(
                     context: context,
-                    color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                    color: isDark
+                        ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+                        : const Color(0x77FFFFFF),
                     borderRadius: 4.0,
                     shadowOffset: 2.0,
+                    customBorderColor: AppTheme.neonYellow,
                   ),
                   child: Text(
                     genre.toUpperCase(),
@@ -351,7 +351,9 @@ class _DetailScreenState extends State<DetailScreen> {
                       width: 120,
                       decoration: AppTheme.brutalistDecoration(
                         context: context,
-                        color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                        color: isDark
+                            ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+                            : const Color(0x77FFFFFF),
                         borderRadius: 4.0,
                         shadowOffset: 2.5,
                       ),
@@ -405,7 +407,10 @@ class _DetailHeaderDelegate extends SliverPersistentHeaderDelegate {
     final theme = CupertinoTheme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final progress = (shrinkOffset / (expandedHeight - 88)).clamp(0.0, 1.0);
-    final bgColor = isDark ? AppTheme.pureBlack : AppTheme.creamBg;
+    final isAmoled = SettingsService.instance.isAmoled;
+    final bgColor = isDark
+        ? (isAmoled ? AppTheme.pureBlack : AppTheme.softDarkBg)
+        : AppTheme.creamBg;
     
     return Stack(
       fit: StackFit.expand,
@@ -446,7 +451,9 @@ class _DetailHeaderDelegate extends SliverPersistentHeaderDelegate {
                 height: 165,
                 decoration: AppTheme.brutalistDecoration(
                   context: context,
-                  color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                  color: isDark
+                      ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+                      : const Color(0x77FFFFFF),
                   borderRadius: 4.0,
                   shadowOffset: 3.0,
                 ),
@@ -493,7 +500,9 @@ class _DetailHeaderDelegate extends SliverPersistentHeaderDelegate {
                         width: 38, height: 38,
                         decoration: AppTheme.brutalistDecoration(
                           context: context,
-                          color: isDark ? AppTheme.darkSlate : AppTheme.neonYellow,
+                          color: isDark
+                              ? (SettingsService.instance.isAmoled ? AppTheme.amoledSurface : AppTheme.darkSlate)
+                              : AppTheme.neonYellow,
                           borderRadius: 4.0,
                           shadowOffset: 2.0,
                         ),
@@ -525,15 +534,17 @@ class _DetailHeaderDelegate extends SliverPersistentHeaderDelegate {
                         width: 38, height: 38,
                         decoration: AppTheme.brutalistDecoration(
                           context: context,
-                          color: isDark ? AppTheme.darkSlate : (isFavorite ? AppTheme.neonYellow : CupertinoColors.white),
+                          color: isDark
+                              ? (SettingsService.instance.isAmoled ? AppTheme.amoledSurface : AppTheme.darkSlate)
+                              : (isFavorite ? AppTheme.neonYellow : CupertinoColors.white),
                           borderRadius: 4.0,
                           shadowOffset: 2.0,
                         ),
                         child: Icon(
                           isFavorite ? FluentIcons.heart_24_filled : FluentIcons.heart_24_regular,
                           size: 20,
-                          color: isFavorite 
-                              ? CupertinoColors.black 
+                          color: isFavorite
+                              ? CupertinoColors.black
                               : (isDark ? CupertinoColors.white : CupertinoColors.black),
                         ),
                       ),
@@ -575,9 +586,11 @@ class _DetailActionBtn extends StatelessWidget {
         height: 44,
         decoration: AppTheme.brutalistDecoration(
           context: context,
-          color: active 
-              ? AppTheme.neonYellow 
-              : (isDark ? AppTheme.darkSlate : CupertinoColors.white),
+          color: active
+              ? AppTheme.neonYellow
+              : (isDark
+                  ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+                  : const Color(0x77FFFFFF)),
           borderRadius: 4.0,
           shadowOffset: 2.5,
         ),
@@ -586,8 +599,8 @@ class _DetailActionBtn extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: active 
-                  ? CupertinoColors.black 
+              color: active
+                  ? CupertinoColors.black
                   : (isDark ? CupertinoColors.white : CupertinoColors.black),
               size: 18,
             ),
@@ -595,8 +608,8 @@ class _DetailActionBtn extends StatelessWidget {
             Text(
               label,
               style: GoogleFonts.spaceGrotesk(
-                color: active 
-                    ? CupertinoColors.black 
+                color: active
+                    ? CupertinoColors.black
                     : (isDark ? CupertinoColors.white : CupertinoColors.black),
                 fontSize: 13,
                 fontWeight: FontWeight.w900,
@@ -628,10 +641,12 @@ class _CastMember extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: borderColor,
+              color: AppTheme.neonYellow,
               width: 2.0,
             ),
-            color: isDark ? AppTheme.darkSlate : AppTheme.neonYellow,
+            color: isDark
+                ? (SettingsService.instance.isAmoled ? const Color(0xFF121212) : AppTheme.darkSlate)
+                : AppTheme.neonYellow,
             image: hasImage
                 ? DecorationImage(
                     image: CachedNetworkImageProvider(cast.fullProfileUrl),
@@ -756,9 +771,11 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
                         margin: const EdgeInsets.only(right: 8),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          color: active 
-                              ? AppTheme.neonYellow 
-                              : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA)),
+                          color: active
+                              ? AppTheme.neonYellow
+                              : (isDark
+                                  ? (SettingsService.instance.isAmoled ? const Color(0xFF121212) : const Color(0xFF2C2C2E))
+                                  : const Color(0xFFE5E5EA)),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Center(

@@ -45,8 +45,9 @@ class PermissionService {
     if (!Platform.isAndroid) return true;
     final perms = await getRequiredPermissions();
     for (final p in perms) {
-      // notification permission is optional — don't block on it
+      // notification and ignoreBatteryOptimizations permissions are optional — don't block on them
       if (p == Permission.notification) continue;
+      if (p == Permission.ignoreBatteryOptimizations) continue;
       if (!await p.isGranted) return false;
     }
     return true;

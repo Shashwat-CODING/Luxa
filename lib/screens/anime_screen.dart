@@ -78,7 +78,7 @@ class _AnimeScreenState extends State<AnimeScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? AppTheme.pureBlack : AppTheme.creamBg,
+      backgroundColor: CupertinoColors.transparent,
       child: _loading
           ? const Center(child: IOSLoading(message: 'Gathering the best anime...'))
           : CustomScrollView(
@@ -231,7 +231,7 @@ class _AnimeScreenState extends State<AnimeScreen> {
                                     height: 44,
                                     decoration: AppTheme.brutalistDecoration(
                                       context: context,
-                                      color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                                      color: isDark ? const Color(0x771C1C1E) : const Color(0x77FFFFFF),
                                       borderRadius: 12.0,
                                       shadowOffset: 0.0,
                                     ),
@@ -285,29 +285,6 @@ class _AnimeScreenState extends State<AnimeScreen> {
                 ),
               );
             }),
-          ),
-        ),
-        // Floating search button top right
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 8,
-          right: 16,
-          child: GestureDetector(
-            onTap: widget.onSearch,
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: AppTheme.brutalistDecoration(
-                context: context,
-                color: isDark ? AppTheme.darkSlate : AppTheme.neonYellow,
-                borderRadius: 12.0,
-                shadowOffset: 0.0,
-              ),
-              child: Icon(
-                FluentIcons.search_24_regular, 
-                size: 18, 
-                color: CupertinoColors.white
-              ),
-            ),
           ),
         ),
       ],
@@ -390,7 +367,7 @@ class _AnimeGridCard extends StatelessWidget {
               child: Container(
                 decoration: AppTheme.brutalistDecoration(
                   context: context,
-                  color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                  color: isDark ? const Color(0x771C1C1E) : const Color(0x77FFFFFF),
                   borderRadius: 12.0,
                   shadowOffset: 2.5,
                 ),
@@ -474,7 +451,7 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
     
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? AppTheme.pureBlack : AppTheme.creamBg,
+      backgroundColor: CupertinoColors.transparent,
       navigationBar: CupertinoNavigationBar(
         transitionBetweenRoutes: false,
         middle: Text('SEARCH ANIME', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 0.5)),

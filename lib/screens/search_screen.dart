@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -13,14 +12,16 @@ import '../widgets/ios_widgets.dart';
 class SearchScreen extends StatefulWidget {
   final VoidCallback? onBack;
   final String? initialQuery;
-  const SearchScreen({super.key, this.onBack, this.initialQuery});
+  final TextEditingController? controller;
+  final bool isTab;
+  const SearchScreen({super.key, this.onBack, this.initialQuery, this.controller, this.isTab = false});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller;
   final _api = ApiService.instance;
 
   List<MediaItem> _results = [];
@@ -34,11 +35,19 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _controller = widget.controller ?? TextEditingController();
+    _controller.addListener(_onControllerChanged);
     _loadPopular();
     if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
       _controller.text = widget.initialQuery!;
       WidgetsBinding.instance.addPostFrameCallback((_) => _doSearch(widget.initialQuery!));
+    } else if (_controller.text.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _doSearch(_controller.text));
     }
+  }
+
+  void _onControllerChanged() {
+    _onChanged(_controller.text);
   }
 
   Future<void> _loadPopular() async {
@@ -57,7 +66,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller.removeListener(_onControllerChanged);
+    if (widget.controller == null) {
+      _controller.dispose();
+    }
     _debounce?.cancel();
     super.dispose();
   }
@@ -83,10 +95,17 @@ class _SearchScreenState extends State<SearchScreen> {
       _searched = true;
     });
     try {
-      final r = await _api.search(q.trim());
+      final futures = [
+        _api.search(q.trim()),
+        _api.searchAnime(q.trim()),
+      ];
+      final results = await Future.wait(futures);
+      final tmdbResults = results[0];
+      final animeResults = results[1];
+
       if (mounted) {
         setState(() {
-          _results = r;
+          _results = [...tmdbResults, ...animeResults];
           _loading = false;
         });
       }
@@ -103,7 +122,6 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = CupertinoTheme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
       child: CustomScrollView(
@@ -112,16 +130,17 @@ class _SearchScreenState extends State<SearchScreen> {
           CupertinoSliverNavigationBar(
             transitionBetweenRoutes: false,
             largeTitle: const Text('Search'),
-            backgroundColor: isDark ? const Color(0xCC000000) : const Color(0xCCF2F2F7),
+            backgroundColor: CupertinoColors.transparent,
             border: null,
           ),
-          SliverToBoxAdapter(
-            child: IOSSearchField(
-              controller: _controller,
-              onChanged: _onChanged,
-              placeholder: 'Movies, TV Shows & more',
+          if (!widget.isTab)
+            SliverToBoxAdapter(
+              child: IOSSearchField(
+                controller: _controller,
+                onChanged: _onChanged,
+                placeholder: 'Movies, TV Shows & more',
+              ),
             ),
-          ),
           if (_searched && _results.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
@@ -135,6 +154,8 @@ class _SearchScreenState extends State<SearchScreen> {
                       _FilterChip(label: 'Movies', active: _filter == 'movie', onTap: () => setState(() => _filter = 'movie')),
                       const SizedBox(width: 10),
                       _FilterChip(label: 'TV Shows', active: _filter == 'tv', onTap: () => setState(() => _filter = 'tv')),
+                      const SizedBox(width: 10),
+                      _FilterChip(label: 'Anime', active: _filter == 'anime', onTap: () => setState(() => _filter = 'anime')),
                     ],
                   ),
                 ),

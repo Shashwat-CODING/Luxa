@@ -1,39 +1,47 @@
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/settings_service.dart';
 
 /// StreamFlix Cupertino Design Theme System
 class AppTheme {
-  // Cupertino system accents (mapped to keep original variable names but premium iOS color values)
-  static const Color neonYellow = Color(0xFF007AFF); // Apple System Blue
-  static const Color neonOrange = Color(0xFFFF9500); // Apple System Orange
+  // Brand Gold Accent colors (mapped to replace neon colors for easy integration)
+  static const Color goldAccent = Color(0xFFF5C451);
+  static const Color secondaryGold = Color(0xFFD4A017);
+
+  static const Color neonYellow = goldAccent;       // Gold Accent
+  static const Color neonOrange = secondaryGold;     // Secondary Gold
   static const Color neonPink = Color(0xFFFF2D55);   // Apple System Pink/Red
   static const Color neonBlue = Color(0xFF5AC8FA);   // Apple System Light Blue
   
   // Grayscale colors
   static const Color pureBlack = Color(0xFF000000);
   static const Color pureWhite = Color(0xFFFFFFFF);
-  static const Color creamBg = Color(0xFFF2F2F7);    // iOS Light Grouped Background
-  static const Color darkSlate = Color(0xFF1C1C1E);   // iOS Dark Grouped Background
+  static const Color creamBg = Color(0xFFF2F2F7);          // iOS Light Grouped Background
+  static const Color softDarkBg = Color(0xFF121212);        // Soft Dark Background
+  static const Color darkSlate = Color(0xFF1C1C1E);         // Standard dark card surface
+  static const Color amoledSurface = Color(0xFF121212);      // AMOLED surface card
+  static const Color textSecondaryDark = Color(0xFF9E9E9E); // Text Secondary
 
-  // Smooth Cupertino Gradient Representation
+  // Smooth Gold-Black Gradient Representation
   static const LinearGradient luxaGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFF007AFF), // iOS Blue
-      Color(0xFF5856D6), // iOS Purple
-      Color(0xFFFF2D55), // iOS Pink/Red
+      Color(0xFFF5C451), // Gold Accent
+      Color(0xFFD4A017), // Secondary Gold
+      Color(0xFF121212), // Dark Slate
       Color(0xFF000000), // Pure Black
     ],
     stops: [0.0, 0.33, 0.66, 1.0],
   );
   
-  static CupertinoThemeData iosTheme(Brightness? brightness, {String? customFont}) {
+  static CupertinoThemeData iosTheme(Brightness? brightness, {String? customFont, bool isAmoled = false}) {
     final isDark = brightness == Brightness.dark;
     
-    // In premium iOS mode, the primary active color is clean Apple Blue
     final primary = neonYellow;
-    final background = isDark ? pureBlack : creamBg;
+    final background = isDark 
+        ? (isAmoled ? pureBlack : softDarkBg) 
+        : creamBg;
     final contrast = isDark ? pureBlack : pureWhite;
     final textColor = isDark ? pureWhite : pureBlack;
     
@@ -47,7 +55,7 @@ class AppTheme {
       primaryColor: primary,
       primaryContrastingColor: contrast,
       barBackgroundColor: isDark 
-          ? const Color(0xCC1C1C1E) // iOS Translucent Dark Bar
+          ? (isAmoled ? const Color(0xCC000000) : const Color(0xCC1C1C1E)) // Translucent Black or Slate
           : const Color(0xCCFFFFFF), // iOS Translucent Light Bar
       scaffoldBackgroundColor: background,
       textTheme: CupertinoTextThemeData(
@@ -71,10 +79,15 @@ class AppTheme {
     Color? customBorderColor,
   }) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
-    final defaultBg = isDark ? darkSlate : pureWhite;
+    final isAmoled = SettingsService.instance.amoledTheme;
+    final defaultBg = isDark 
+        ? (isAmoled ? amoledSurface : darkSlate) 
+        : pureWhite;
     
     // Sleek Apple-style border colors: very low opacity, thin
-    final borderColor = customBorderColor ?? (isDark ? const Color(0x15FFFFFF) : const Color(0x0D000000));
+    final borderColor = customBorderColor ?? (isDark 
+        ? (isAmoled ? const Color(0x12FFFFFF) : const Color(0x12FFFFFF)) 
+        : const Color(0x0D000000));
     
     // Map standard 4px rounded brutalist corners to elegant 12px corners unless custom is specified
     final radius = borderRadius == 4.0 ? 12.0 : borderRadius;

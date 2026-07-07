@@ -1,4 +1,3 @@
-import '../models/channel.dart';
 
 class Subtitle {
   final String url;
@@ -63,7 +62,15 @@ class StreamSource {
                 'Referer': 'https://cinemaos.live',
                 'Origin': 'https://cinemaos.live',
               }
-            : headers;
+            : (serverId == 6 && (referer != null || origin != null))
+                ? {
+                    ...?headers,
+                    if (referer != null) 'Referer': referer,
+                    if (origin != null) 'Origin': origin,
+                    'User-Agent':
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+                  }
+                : headers;
 
   factory StreamSource.fromJson(Map<String, dynamic> json) {
     var rawQuality = json['quality'];
@@ -149,9 +156,12 @@ class StreamSource {
        else if (url.contains('sub')) language = 'Subbed';
     }
 
+    final String rawUrl = json['url']?.toString() ?? '';
+    final bool isAudioOnly = q.toLowerCase().startsWith('audio');
+
     return StreamSource(
       quality: q,
-      url: json['url']?.toString() ?? '',
+      url: isAudioOnly ? '' : rawUrl,
       source: metadata,
       serverId: json['serverId'] ?? 0,
       referer: json['referer']?.toString(),
@@ -165,91 +175,6 @@ class StreamSource {
   }
   @override
   String toString() => '[$serverId] $source ($quality) ${language != null ? "[$language]" : ""} - $url';
-}
-
-class IptvResponse {
-  final int page;
-  final int count;
-  final int totalPages;
-  final List<Channel> results;
-
-  IptvResponse({
-    required this.page,
-    required this.count,
-    required this.totalPages,
-    required this.results,
-  });
-
-  factory IptvResponse.fromJson(Map<String, dynamic> json) {
-    return IptvResponse(
-      page: json['page'] ?? 1,
-      count: json['count'] ?? 0,
-      totalPages: json['total_pages'] ?? 1,
-      results:
-          (json['results'] as List?)
-               ?.map((c) => Channel.fromJson(c))
-               .toList() ??
-          [],
-    );
-  }
-
-  factory IptvResponse.empty() =>
-      IptvResponse(page: 1, count: 0, totalPages: 1, results: []);
-}
-
-class CountryEntry {
-  final String code;
-  final String name;
-  final String flag;
-  final List<String> languages;
-  const CountryEntry({
-    required this.code,
-    required this.name,
-    required this.flag,
-    required this.languages,
-  });
-
-  factory CountryEntry.fromJson(Map<String, dynamic> json) => CountryEntry(
-    code: json['code']?.toString().toLowerCase() ?? '',
-    name: json['name'] ?? '',
-    flag: json['flag'] ?? '',
-    languages: List<String>.from(json['languages'] ?? []),
-  );
-}
-
-class RegionEntry {
-  final String code;
-  final String name;
-  final List<String> countries;
-  const RegionEntry({
-    required this.code,
-    required this.name,
-    required this.countries,
-  });
-
-  factory RegionEntry.fromJson(Map<String, dynamic> json) => RegionEntry(
-    code: json['code'] ?? '',
-    name: json['name'] ?? '',
-    countries: List<String>.from(json['countries'] ?? []),
-  );
-}
-
-class CategoryEntry {
-  final String id;
-  final String name;
-  const CategoryEntry({required this.id, required this.name});
-
-  factory CategoryEntry.fromJson(Map<String, dynamic> json) =>
-      CategoryEntry(id: json['id'] ?? '', name: json['name'] ?? '');
-}
-
-class LanguageEntry {
-  final String code;
-  final String name;
-  const LanguageEntry({required this.code, required this.name});
-
-  factory LanguageEntry.fromJson(Map<String, dynamic> json) =>
-      LanguageEntry(code: json['code'] ?? '', name: json['name'] ?? '');
 }
 
 class User {

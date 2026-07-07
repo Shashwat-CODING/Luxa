@@ -94,7 +94,9 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
     final allGranted = statuses.values
         .where((s) => true)
         .every((s) => s.isGranted);
-    final anyPerm = statuses.values.any((s) => s.isPermanentlyDenied);
+    final anyPerm = statuses.entries
+        .where((e) => e.key != Permission.ignoreBatteryOptimizations)
+        .any((e) => e.value.isPermanentlyDenied);
 
     if (!mounted) return;
     setState(() {

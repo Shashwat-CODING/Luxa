@@ -4,6 +4,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
+import 'package:flutter/material.dart' as material;
 import 'package:fvp/fvp.dart';
 import 'package:dio/dio.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -13,9 +15,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../models/media_item.dart';
 import '../services/api_service.dart';
 import '../models/api_models.dart';
-import '../widgets/fvp_controls.dart';
 import '../widgets/ios_widgets.dart';
 import '../services/watch_history.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 
 class AnimePlayerScreen extends StatefulWidget {
@@ -38,6 +40,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
   final _api = ApiService.instance;
 
   VideoPlayerController? _videoPlayerController;
+  ChewieController? _chewieController;
   dynamic _mediaInfo;
 
   bool _loading = true;
@@ -116,6 +119,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
   void dispose() {
     _saveProgress();
     _resetSystemUI();
+    _chewieController?.dispose();
     _videoPlayerController?.dispose();
     _stopLoadingAnimation();
     WakelockPlus.disable().catchError((_) {});
@@ -252,13 +256,19 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     }
 
     // Dispose old controller
+    _chewieController?.dispose();
+    _chewieController = null;
     _videoPlayerController?.pause();
     _videoPlayerController?.dispose();
     _videoPlayerController = null;
 
     // Pre-validate URL (same logic as movie player, but lighter — HLS .m3u8
     // endpoints often return 200 immediately so we keep a short timeout)
-    final statusCode = await _preValidateUrl(url, headers);
+    final isServer6 = _selectedSource?.serverId == 6;
+    if (isServer6) {
+      debugPrint('ℹ️ [ANIME PLAYER] Server 6 detected. Skipping pre-validation as requested.');
+    }
+    final statusCode = isServer6 ? 200 : await _preValidateUrl(url, headers);
     if (!mounted) return;
 
     if (statusCode >= 400) {
@@ -274,6 +284,30 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
       );
 
       await _videoPlayerController!.initialize();
+
+      final primaryColor = CupertinoTheme.of(context).primaryColor;
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController!,
+        autoPlay: true,
+        looping: false,
+        aspectRatio: _videoPlayerController!.value.aspectRatio > 0 ? _videoPlayerController!.value.aspectRatio : 16 / 9,
+        showControls: true,
+        allowFullScreen: true,
+        allowPlaybackSpeedChanging: true,
+        customControls: const MaterialControls(),
+        cupertinoProgressColors: ChewieProgressColors(
+          playedColor: primaryColor,
+          handleColor: primaryColor,
+          bufferedColor: CupertinoColors.systemGrey.withValues(alpha: 0.5),
+          backgroundColor: CupertinoColors.systemGrey.withValues(alpha: 0.2),
+        ),
+        materialProgressColors: ChewieProgressColors(
+          playedColor: primaryColor,
+          handleColor: primaryColor,
+          bufferedColor: CupertinoColors.systemGrey.withValues(alpha: 0.5),
+          backgroundColor: CupertinoColors.systemGrey.withValues(alpha: 0.2),
+        ),
+      );
 
       try {
         _mediaInfo = _videoPlayerController!.getMediaInfo();
@@ -408,7 +442,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
   Widget build(BuildContext context) {
     if (_isFullscreen) {
       return CupertinoPageScaffold(
-        backgroundColor: CupertinoColors.black,
+        backgroundColor: CupertinoColors.transparent,
         child: Stack(children: [Center(child: _buildVideoContainer())]),
       );
     }
@@ -417,7 +451,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? CupertinoColors.black : theme.scaffoldBackgroundColor,
+      backgroundColor: CupertinoColors.transparent,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 950;
@@ -505,14 +539,16 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     return Stack(
       children: [
         if (_videoPlayerController != null &&
-            _videoPlayerController!.value.isInitialized)
-          FvpCustomControls(
-            controller: _videoPlayerController!,
-            onFullscreenToggle: _toggleFullscreen,
-            onShowSettings: _showSettingsSheet,
-            topBar: _buildFloatingTopBar(),
-            mediaId: 'anime-$_currentSlug',
-            mediaType: 'anime',
+            _videoPlayerController!.value.isInitialized &&
+            _chewieController != null)
+          material.Theme(
+            data: material.ThemeData.dark().copyWith(
+              platform: TargetPlatform.android,
+            ),
+            child: material.Material(
+              type: material.MaterialType.transparency,
+              child: Chewie(controller: _chewieController!),
+            ),
           )
         else
           Container(color: CupertinoColors.black),
@@ -1015,7 +1051,9 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
         margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
         decoration: AppTheme.brutalistDecoration(
           context: context,
-          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          color: isDark
+              ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+              : const Color(0x77FFFFFF),
           borderRadius: 12.0,
           hasShadow: false,
         ),
@@ -1380,7 +1418,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: AppTheme.brutalistDecoration(
           context: context,
-          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          color: isDark ? const Color(0x771C1C1E) : const Color(0x77FFFFFF),
           borderRadius: 4.0,
           shadowOffset: 2.0,
         ),
@@ -1436,7 +1474,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
           context: context,
           color: isActive
               ? AppTheme.neonYellow
-              : (isDark ? AppTheme.darkSlate : CupertinoColors.white),
+              : (isDark ? const Color(0x771C1C1E) : const Color(0x77FFFFFF)),
           borderRadius: 4.0,
           shadowOffset: isActive ? 2.5 : 1.5,
         ),

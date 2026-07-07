@@ -3,15 +3,9 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/cupertino.dart';
 import '../services/api_service.dart';
 import '../screens/detail_screen.dart';
-import '../screens/search_screen.dart';
 import '../screens/player_screen.dart';
-import '../screens/live_player_screen.dart';
-import '../models/channel.dart';
 import '../widgets/ios_widgets.dart';
 import '../main.dart';
-import '../screens/onboarding_screen.dart';
-import '../screens/auth_screen.dart';
-import '../services/auth_service.dart';
 
 
 class DeepLinkService {
@@ -20,14 +14,14 @@ class DeepLinkService {
 
   final _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
-  Function(int)? _onTabChange;
+  Function(int, [String?])? _onTabChange;
 
   Uri? _pendingUri;
   Uri? _lastHandledUri;
   DateTime? _lastHandledTime;
   bool _isProcessing = false;
 
-  void init({Function(int)? onTabChange}) {
+  void init({Function(int, [String?])? onTabChange}) {
     _onTabChange = onTabChange;
     _linkSubscription?.cancel();
 
@@ -52,7 +46,7 @@ class DeepLinkService {
     _linkSubscription?.cancel();
   }
 
-  String? _lastConfigUrl;
+
 
   void _handleUri(Uri uri) async {
     final now = DateTime.now();
@@ -120,16 +114,6 @@ class DeepLinkService {
           await _navigateToPlayer(id, type!, season: s, episode: e);
         }
       }
-      // 3. Live TV Player: /watch/iptv?id=789
-      else if (fullPath.startsWith('/watch/iptv')) {
-        final id = params['id'];
-        if (id != null) {
-          await _navigateToIptv(id);
-        }
-      }
-      else if (fullPath == '/live-tv') {
-        _switchTab(4); // Fixed index for Live TV
-      }
       else if (fullPath == '/movies') {
         _switchTab(0);
       }
@@ -158,63 +142,11 @@ class DeepLinkService {
     }
   }
 
-  void _refreshApp() {
-    navigatorKey.currentState?.pushAndRemoveUntil(
-      CupertinoPageRoute(builder: (_) => const MainNavigation()),
-      (route) => false,
-    );
-  }
 
-  void _showAuthPrompt() {
-    final context = navigatorKey.currentContext;
-    if (context == null) {
-      _refreshApp();
-      return;
-    }
 
-    if (AuthService.instance.isAuthenticated) {
-      _refreshApp();
-      return;
-    }
-
-    showCupertinoDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Backend Configured'),
-        content: const Text('Would you like to sign in or create an account to sync your history and bookmarks?'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _refreshApp();
-            },
-            child: const Text('Skip'),
-          ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () {
-              Navigator.pop(context);
-              navigatorKey.currentState?.pushAndRemoveUntil(
-                CupertinoPageRoute(builder: (_) => const AuthScreen()),
-                (route) => false,
-              ).then((_) {
-                // If they skip from AuthScreen or finish, we should probably go to MainNavigation
-                _refreshApp();
-              });
-            },
-            child: const Text('Sign In'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _navigateToSearch(String query) {
-    navigatorKey.currentState?.popUntil((route) => route.isFirst);
-    navigatorKey.currentState?.push(
-      CupertinoPageRoute(builder: (_) => SearchScreen(initialQuery: query)),
-    );
+    _switchTab(1, query);
   }
 
   Future<void> _navigateToDetails(int id, String type) async {
@@ -281,38 +213,9 @@ class DeepLinkService {
     }
   }
 
-  Future<void> _navigateToIptv(String id) async {
-    await _waitForNavigator();
-    if (navigatorKey.currentState == null) return;
-
-    _showLoadingOverlay();
-
-    try {
-      final api = ApiService.instance;
-      final channel = await api.getChannelDetail(id);
-
-      _hideLoadingOverlay();
-
-      if (channel != null) {
-        navigatorKey.currentState?.pushAndRemoveUntil(
-          CupertinoPageRoute(builder: (_) => const MainNavigation()),
-          (route) => false,
-        );
-        
-        navigatorKey.currentState?.push(
-          CupertinoPageRoute(
-            builder: (_) => LivePlayerScreen(channel: channel),
-          ),
-        );
-      }
-    } catch (e) {
-      _hideLoadingOverlay();
-    }
-  }
-
-  void _switchTab(int index) {
+  void _switchTab(int index, [String? query]) {
     navigatorKey.currentState?.popUntil((route) => route.isFirst);
-    _onTabChange?.call(index);
+    _onTabChange?.call(index, query);
   }
 
   bool _isLoadingShowing = false;

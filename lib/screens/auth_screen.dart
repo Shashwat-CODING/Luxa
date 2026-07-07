@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../services/auth_service.dart';
 import '../services/sync_service.dart';
+import '../services/settings_service.dart';
 
 class AuthScreen extends StatefulWidget {
   /// When true, a "Skip" button is shown at the top and tapping it pops/dismisses.
@@ -96,7 +97,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     final theme  = CupertinoTheme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final bg     = isDark ? CupertinoColors.black : const Color(0xFFF2F2F7);
+    final bg     = theme.scaffoldBackgroundColor;
     final primary = theme.primaryColor;
 
     return CupertinoPageScaffold(
@@ -187,23 +188,19 @@ class _AuthScreenState extends State<AuthScreen> {
                     if (!_isLogin) ...[
                       _buildLabel('Full Name', isDark),
                       const SizedBox(height: 6),
-                      _buildField(
+                      AuthTextField(
                         controller: _nameCtrl,
                         placeholder: 'John Doe',
                         icon: FluentIcons.person_circle_24_regular,
-                        isDark: isDark,
-                        primary: primary,
                       ),
                       const SizedBox(height: 16),
 
                       _buildLabel('Username', isDark),
                       const SizedBox(height: 6),
-                      _buildField(
+                      AuthTextField(
                         controller: _usernameCtrl,
                         placeholder: 'johndoe',
                         icon: FluentIcons.mention_24_regular,
-                        isDark: isDark,
-                        primary: primary,
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -211,26 +208,22 @@ class _AuthScreenState extends State<AuthScreen> {
                     // ── Email ─────────────────────────────────────────────
                     _buildLabel(_isLogin ? 'Email or Username' : 'Email Address', isDark),
                     const SizedBox(height: 6),
-                    _buildField(
+                    AuthTextField(
                       controller: _emailCtrl,
                       placeholder: _isLogin ? 'you@example.com' : 'you@example.com',
                       icon: _isLogin ? FluentIcons.person_24_regular : FluentIcons.mail_24_regular,
                       type: TextInputType.emailAddress,
-                      isDark: isDark,
-                      primary: primary,
                     ),
                     const SizedBox(height: 16),
 
                     // ── Password ──────────────────────────────────────────
                     _buildLabel('Password', isDark),
                     const SizedBox(height: 6),
-                    _buildField(
+                    AuthTextField(
                       controller: _passwordCtrl,
                       placeholder: '••••••••',
                       icon: FluentIcons.lock_closed_24_regular,
                       obscure: _obscurePassword,
-                      isDark: isDark,
-                      primary: primary,
                       suffix: CupertinoButton(
                         padding: EdgeInsets.zero,
                         minSize: 0,
@@ -317,14 +310,14 @@ class _AuthScreenState extends State<AuthScreen> {
                               alignment: Alignment.center,
                               child: loading
                                   ? const CupertinoActivityIndicator(
-                                      color: CupertinoColors.white,
+                                      color: CupertinoColors.black,
                                       radius: 12,
                                     )
                                   : Text(
                                       _isLogin ? 'Sign In' : 'Create Account',
                                       style: GoogleFonts.outfit(
                                         fontWeight: FontWeight.w700,
-                                        color: CupertinoColors.white,
+                                        color: CupertinoColors.black,
                                         fontSize: 17,
                                       ),
                                     ),
@@ -379,42 +372,103 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _buildField({
-    required TextEditingController controller,
-    required String placeholder,
-    required IconData icon,
-    required bool isDark,
-    required Color primary,
-    bool obscure = false,
-    TextInputType type = TextInputType.text,
-    Widget? suffix,
-  }) {
-    final bg = isDark
-        ? const Color(0xFF1C1C1E)
-        : CupertinoColors.white;
-    final borderColor = isDark
-        ? const Color(0xFF3A3A3C)
-        : const Color(0xFFD1D1D6);
+}
 
-    return Container(
+class AuthTextField extends StatefulWidget {
+  final TextEditingController controller;
+  final String placeholder;
+  final IconData icon;
+  final bool obscure;
+  final TextInputType type;
+  final Widget? suffix;
+
+  const AuthTextField({
+    super.key,
+    required this.controller,
+    required this.placeholder,
+    required this.icon,
+    this.obscure = false,
+    this.type = TextInputType.text,
+    this.suffix,
+  });
+
+  @override
+  State<AuthTextField> createState() => _AuthTextFieldState();
+}
+
+class _AuthTextFieldState extends State<AuthTextField> {
+  final FocusNode _focusNode = FocusNode();
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      setState(() {
+        _isFocused = _focusNode.hasFocus;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isAmoled = SettingsService.instance.isAmoled;
+
+    final bg = isDark
+        ? (isAmoled ? const Color(0xFF121212) : const Color(0xFF1C1C1E))
+        : CupertinoColors.white;
+
+    final primary = theme.primaryColor;
+
+    final borderColor = _isFocused
+        ? primary
+        : (isDark
+            ? (isAmoled ? const Color(0xFF1E1E1E) : const Color(0xFF3A3A3C))
+            : const Color(0xFFD1D1D6));
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
+        border: Border.all(
+          color: borderColor,
+          width: _isFocused ? 1.5 : 1.0,
+        ),
+        boxShadow: _isFocused
+            ? [
+                BoxShadow(
+                  color: primary.withValues(alpha: 0.15),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                )
+              ]
+            : [],
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
           Icon(
-            icon,
+            widget.icon,
             size: 18,
-            color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2,
+            color: _isFocused
+                ? primary
+                : (isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: CupertinoTextField(
-              controller: controller,
-              placeholder: placeholder,
+              controller: widget.controller,
+              focusNode: _focusNode,
+              placeholder: widget.placeholder,
               placeholderStyle: TextStyle(
                 color: isDark
                     ? CupertinoColors.systemGrey
@@ -426,13 +480,13 @@ class _AuthScreenState extends State<AuthScreen> {
                 fontSize: 15,
               ),
               decoration: null,
-              obscureText: obscure,
-              keyboardType: type,
+              obscureText: widget.obscure,
+              keyboardType: widget.type,
               padding: const EdgeInsets.symmetric(vertical: 16),
               autocorrect: false,
             ),
           ),
-          if (suffix != null) suffix,
+          if (widget.suffix != null) widget.suffix!,
         ],
       ),
     );
@@ -455,7 +509,10 @@ class _ModeTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA);
+    final isAmoled = SettingsService.instance.isAmoled;
+    final bg = isDark
+        ? (isAmoled ? const Color(0xFF121212) : const Color(0xFF1C1C1E))
+        : const Color(0xFFE5E5EA);
 
     return Container(
       height: 46,
@@ -473,6 +530,11 @@ class _ModeTabs extends StatelessWidget {
   }
 
   Widget _tab(String label, bool active, VoidCallback onTap) {
+    final isAmoled = SettingsService.instance.isAmoled;
+    final activeBg = isDark
+        ? (isAmoled ? const Color(0xFF1C1C1E) : const Color(0xFF2C2C2E))
+        : CupertinoColors.white;
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -481,7 +543,7 @@ class _ModeTabs extends StatelessWidget {
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: active
-                ? (isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white)
+                ? activeBg
                 : CupertinoColors.transparent,
             borderRadius: BorderRadius.circular(11),
             boxShadow: active

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -12,6 +13,7 @@ import 'search_screen.dart';
 import '../widgets/native_ad_widget.dart';
 import '../widgets/ios_widgets.dart';
 import '../theme/app_theme.dart';
+import '../services/settings_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onSearch;
@@ -123,12 +125,51 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? AppTheme.pureBlack : AppTheme.creamBg,
+      backgroundColor: CupertinoColors.transparent,
       child: _loading
           ? const Center(child: IOSLoading(message: 'Curating the best content...'))
           : CustomScrollView(
               physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
               slivers: [
+                SliverSafeArea(
+                  bottom: false,
+                  sliver: SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: GestureDetector(
+                        onTap: widget.onSearch,
+                        child: Container(
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: isDark 
+                                ? CupertinoColors.systemGrey6.darkColor 
+                                : CupertinoColors.systemGrey6,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              Icon(
+                                FluentIcons.search_24_regular,
+                                color: CupertinoColors.systemGrey,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Search movies, shows, anime...',
+                                style: TextStyle(
+                                  color: CupertinoColors.systemGrey,
+                                  fontSize: 16,
+                                  fontFamily: GoogleFonts.inter().fontFamily,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 SliverToBoxAdapter(child: _HeroCarousel(
                   items: _trending.take(5).toList(),
                   heroIndex: _heroIndex,
@@ -212,16 +253,16 @@ class _HeroCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenH = MediaQuery.of(context).size.height;
-    final cardH = (screenH * 0.65).clamp(420.0, 700.0);
+    // Set PageView height for the popup card layout
+    final viewH = (screenH * 0.52).clamp(340.0, 500.0);
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     if (items.isEmpty) return const SizedBox.shrink();
 
-    return Stack(
-      alignment: Alignment.bottomCenter,
+    return Column(
       children: [
         SizedBox(
-          height: cardH,
+          height: viewH,
           child: PageView.builder(
             controller: controller,
             onPageChanged: onPageChanged,
@@ -232,59 +273,29 @@ class _HeroCarousel extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 8),
         // Dot indicators
-        Positioned(
-          bottom: 96,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(items.length, (i) {
-              final active = i == heroIndex;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                margin: const EdgeInsets.only(right: 6),
-                width: active ? 16 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: active
-                      ? AppTheme.neonYellow
-                      : CupertinoColors.white.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              );
-            }),
-          ),
-        ),
-        // Floating search button top right
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 8,
-          right: 16,
-          child: GestureDetector(
-            onTap: () {
-              if (onSearch != null) {
-                onSearch!();
-              } else {
-                Navigator.of(context, rootNavigator: true).push(
-                  CupertinoPageRoute(builder: (_) => const SearchScreen()),
-                );
-              }
-            },
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: AppTheme.brutalistDecoration(
-                context: context,
-                color: isDark ? AppTheme.darkSlate : AppTheme.neonYellow,
-                borderRadius: 12.0,
-                shadowOffset: 0.0,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(items.length, (i) {
+            final active = i == heroIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.only(right: 6),
+              width: active ? 16 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: active
+                    ? AppTheme.neonYellow
+                    : (isDark
+                        ? CupertinoColors.white.withValues(alpha: 0.3)
+                        : CupertinoColors.black.withValues(alpha: 0.2)),
+                borderRadius: BorderRadius.circular(4),
               ),
-              child: Icon(
-                FluentIcons.search_24_regular, 
-                size: 18, 
-                color: CupertinoColors.white
-              ),
-            ),
-          ),
+            );
+          }),
         ),
+        const SizedBox(height: 12),
       ],
     );
   }
@@ -299,180 +310,197 @@ class _HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = item.fullBackdropUrl.isNotEmpty ? item.fullBackdropUrl : item.fullPosterUrl;
-    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: onTap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background image
-          CachedNetworkImage(
-            imageUrl: imageUrl,
-            fit: BoxFit.cover,
-            placeholder: (_, _) => const ColoredBox(color: Color(0xFF111111)),
-            errorWidget: (_, _, _) => const ColoredBox(color: Color(0xFF111111)),
-          ),
-          // Multi-stop gradient
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0.0, 0.3, 0.6, 1.0],
-                colors: [
-                  CupertinoColors.black.withValues(alpha: 0.2),
-                  CupertinoColors.transparent,
-                  CupertinoColors.black.withValues(alpha: 0.55),
-                  CupertinoColors.black,
-                ],
-              ),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          color: isDark ? CupertinoColors.black : CupertinoColors.white,
+          boxShadow: [
+            BoxShadow(
+              color: isDark 
+                  ? CupertinoColors.black.withValues(alpha: 0.5) 
+                  : CupertinoColors.black.withValues(alpha: 0.15),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
             ),
-          ),
-          // Side vignette
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [
-                  CupertinoColors.black.withValues(alpha: 0.2),
-                  CupertinoColors.transparent,
-                  CupertinoColors.black.withValues(alpha: 0.1),
-                ],
-              ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background image (Completely clean, no gradients/overlays directly on it)
+            CachedNetworkImage(
+              imageUrl: imageUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              placeholder: (_, _) => const ColoredBox(color: Color(0xFF111111)),
+              errorWidget: (_, _, _) => const ColoredBox(color: Color(0xFF111111)),
             ),
-          ),
-          // Content overlay at bottom
-          Positioned(
-            left: 24,
-            right: 24,
-            bottom: 24,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Type badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppTheme.neonYellow,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    (item.mediaType == 'tv' ? 'SERIES' : 'FILM').toUpperCase(),
-                    style: const TextStyle(
-                      color: CupertinoColors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Title
-                Text(
-                  item.title.toUpperCase(),
-                  style: const TextStyle(
-                    color: CupertinoColors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
-                    height: 1.1,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                // Meta row
-                Row(
-                  children: [
-                    const Icon(FluentIcons.star_24_filled, size: 13, color: AppTheme.neonYellow),
-                    const SizedBox(width: 4),
-                    Text(
-                      item.ratingStr,
-                      style: const TextStyle(color: CupertinoColors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(width: 3, height: 3, decoration: const BoxDecoration(color: Color(0xFF8E8E93), shape: BoxShape.circle)),
-                    const SizedBox(width: 10),
-                    Text(
-                      item.year,
-                      style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                // Action buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: onTap,
-                        child: Container(
-                          height: 44,
-                          decoration: AppTheme.brutalistDecoration(
-                            context: context,
-                            color: AppTheme.neonYellow,
-                            borderRadius: 12.0,
-                            shadowOffset: 0.0,
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(FluentIcons.play_24_filled, color: CupertinoColors.white, size: 18),
-                              SizedBox(width: 8),
-                              Text(
-                                'PLAY NOW',
-                                style: TextStyle(
-                                  color: CupertinoColors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+            // Frosted Glass details card overlayed at the bottom of the card
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: (isDark
+                          ? CupertinoColors.black.withValues(alpha: 0.55)
+                          : CupertinoColors.white.withValues(alpha: 0.7)),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: (isDark
+                            ? CupertinoColors.white.withValues(alpha: 0.08)
+                            : CupertinoColors.black.withValues(alpha: 0.08)),
+                        width: 0.5,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: onTap,
-                        child: Container(
-                          height: 44,
-                          decoration: AppTheme.brutalistDecoration(
-                            context: context,
-                            color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
-                            borderRadius: 12.0,
-                            shadowOffset: 0.0,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(FluentIcons.info_24_regular, color: isDark ? CupertinoColors.white : CupertinoColors.black, size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                'INFO',
-                                style: TextStyle(
-                                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                                  fontSize: 14,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            // Type badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.neonYellow,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                (item.mediaType == 'tv' ? 'SERIES' : 'FILM').toUpperCase(),
+                                style: const TextStyle(
+                                  color: CupertinoColors.black,
+                                  fontSize: 8,
                                   fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
+                                  letterSpacing: 1.5,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Rating
+                            const Icon(FluentIcons.star_24_filled, size: 12, color: AppTheme.neonYellow),
+                            const SizedBox(width: 3),
+                            Text(
+                              item.ratingStr,
+                              style: TextStyle(
+                                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Year
+                            Text(
+                              item.year,
+                              style: TextStyle(
+                                color: isDark ? const Color(0xFFAAAAAA) : const Color(0xFF666666),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                        const SizedBox(height: 6),
+                        // Title
+                        Text(
+                          item.title.toUpperCase(),
+                          style: TextStyle(
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 10),
+                        // Action buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: onTap,
+                                child: Container(
+                                  height: 36,
+                                  decoration: AppTheme.brutalistDecoration(
+                                    context: context,
+                                    color: AppTheme.neonYellow,
+                                    borderRadius: 8.0,
+                                    shadowOffset: 0.0,
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(FluentIcons.play_24_filled, color: CupertinoColors.black, size: 14),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'PLAY NOW',
+                                        style: TextStyle(
+                                          color: CupertinoColors.black,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: onTap,
+                                child: Container(
+                                  height: 36,
+                                  decoration: AppTheme.brutalistDecoration(
+                                    context: context,
+                                    color: isDark
+                                        ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+                                        : const Color(0x77FFFFFF),
+                                    borderRadius: 8.0,
+                                    shadowOffset: 0.0,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(FluentIcons.info_24_regular, color: isDark ? CupertinoColors.white : CupertinoColors.black, size: 14),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'INFO',
+                                        style: TextStyle(
+                                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -553,7 +581,9 @@ class _ContentCard extends StatelessWidget {
         width: 120,
         decoration: AppTheme.brutalistDecoration(
           context: context,
-          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          color: isDark
+              ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+              : const Color(0x77FFFFFF),
           borderRadius: 12.0,
           shadowOffset: 0.0,
         ),
@@ -562,9 +592,15 @@ class _ContentCard extends StatelessWidget {
           child: CachedNetworkImage(
             imageUrl: item.fullPosterUrl,
             fit: BoxFit.cover,
-            placeholder: (_, __) => Container(color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE5E5EA)),
+            placeholder: (_, __) => Container(
+              color: isDark
+                  ? (SettingsService.instance.isAmoled ? const Color(0xFF121212) : const Color(0xFF1E1E1E))
+                  : const Color(0xFFE5E5EA),
+            ),
             errorWidget: (_, __, ___) => Container(
-              color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE5E5EA),
+              color: isDark
+                  ? (SettingsService.instance.isAmoled ? const Color(0xFF121212) : const Color(0xFF1E1E1E))
+                  : const Color(0xFFE5E5EA),
               child: const Icon(FluentIcons.video_clip_24_regular, size: 24, color: CupertinoColors.systemGrey),
             ),
           ),

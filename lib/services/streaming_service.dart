@@ -38,10 +38,11 @@ class StreamingService {
     final List<(int, String, Duration)> primaryConfigs = [
       (6, '$streamingBase/6/$mediaType?id=$tmdbId$query', const Duration(seconds: 50)),
       (1, '$streamingBase/1/$mediaType?id=$tmdbId$query', const Duration(seconds: 30)),
-      (3, '$streamingBase/3/$mediaType?id=$tmdbId$query', const Duration(seconds: 30)),
+      (3, '$streamingBase/13/$mediaType?id=$tmdbId$query', const Duration(seconds: 30)),
       (4, '$streamingBase/4/$mediaType?id=$tmdbId$query', const Duration(seconds: 30)),
       (5, '$streamingBase/5/$mediaType?id=$tmdbId$query', const Duration(seconds: 35)),
       (9, '$streamingBase/9/$mediaType?id=$tmdbId$query', const Duration(seconds: 60)),
+      (12, '$streamingBase/12/$mediaType?id=$tmdbId$query', const Duration(seconds: 60)),
     ];
 
     final client = http.Client();

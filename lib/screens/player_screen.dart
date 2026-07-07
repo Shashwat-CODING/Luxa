@@ -6,6 +6,8 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
+import 'package:flutter/material.dart' as material;
 
 import 'package:fvp/fvp.dart';
 
@@ -16,18 +18,16 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../widgets/ios_widgets.dart';
 import '../theme/app_theme.dart';
-import '../utils/language_utils.dart';
 import '../models/media_item.dart';
 import '../services/api_service.dart';
 import '../services/streaming_service.dart';
 import '../models/api_models.dart';
 import '../models/download_item.dart';
 import '../services/watch_history.dart';
+import '../services/settings_service.dart';
 import '../widgets/native_ad_widget.dart';
 import '../widgets/banner_ad_widget.dart';
 import 'package:share_plus/share_plus.dart';
-import '../widgets/fvp_controls.dart';
-import '../services/auth_service.dart';
 
 
 
@@ -62,6 +62,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final _streamService = StreamingService.instance;
 
   VideoPlayerController? _videoPlayerController;
+  ChewieController? _chewieController;
 
   dynamic _mediaInfo;
 
@@ -745,6 +746,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
 
     // Stop and dispose old controller immediately to avoid background audio/video playing
+    _chewieController?.dispose();
+    _chewieController = null;
     _videoPlayerController?.pause();
     _videoPlayerController?.dispose();
     _videoPlayerController = null;
@@ -758,9 +761,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // This catches immediate 404s in ~8s instead of waiting for libmpv's
     // full internal timeout (which can be several minutes).
     final isLocal = url.startsWith('file://');
-    final statusCode = isLocal
-        ? (await File(url.replaceFirst('file://', '')).exists() ? 200 : 404)
-        : await _preValidateUrl(url, headers);
+    final isServer6 = _selectedSource?.serverId == 6;
+    if (isServer6) {
+      debugPrint('ℹ️ [PLAYER] Server 6 detected. Skipping pre-validation as requested.');
+    }
+    final statusCode = isServer6
+        ? 200
+        : (isLocal
+            ? (await File(url.replaceFirst('file://', '')).exists() ? 200 : 404)
+            : await _preValidateUrl(url, headers));
 
     if (!mounted) return;
 
@@ -801,7 +810,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       await _videoPlayerController!.initialize();
-      _videoPlayerController!.play();
+
+      final primaryColor = CupertinoTheme.of(context).primaryColor;
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController!,
+        autoPlay: true,
+        looping: false,
+        aspectRatio: _videoPlayerController!.value.aspectRatio > 0 ? _videoPlayerController!.value.aspectRatio : 16 / 9,
+        showControls: true,
+        allowFullScreen: true,
+        allowPlaybackSpeedChanging: true,
+        customControls: const MaterialControls(),
+        cupertinoProgressColors: ChewieProgressColors(
+          playedColor: primaryColor,
+          handleColor: primaryColor,
+          bufferedColor: CupertinoColors.systemGrey.withValues(alpha: 0.5),
+          backgroundColor: CupertinoColors.systemGrey.withValues(alpha: 0.2),
+        ),
+        materialProgressColors: ChewieProgressColors(
+          playedColor: primaryColor,
+          handleColor: primaryColor,
+          bufferedColor: CupertinoColors.systemGrey.withValues(alpha: 0.5),
+          backgroundColor: CupertinoColors.systemGrey.withValues(alpha: 0.2),
+        ),
+      );
 
       try {
         _mediaInfo = _videoPlayerController!.getMediaInfo();
@@ -818,6 +850,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             Duration(milliseconds: widget.item!.position!),
           );
         }
+        _videoPlayerController!.play();
       }
     } catch (e) {
       debugPrint(
@@ -932,6 +965,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void dispose() {
     _saveProgress();
     _resetSystemUI();
+    _chewieController?.dispose();
     _videoPlayerController?.dispose();
     _stopLoadingAnimation();
     WakelockPlus.disable().catchError((_) {});
@@ -1026,7 +1060,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
 
     final theme = CupertinoTheme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     return Shortcuts(
       shortcuts: _shortcuts,
       child: Actions(
@@ -1034,7 +1067,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: Focus(
           autofocus: true,
           child: CupertinoPageScaffold(
-            backgroundColor: isDark ? CupertinoColors.black : theme.scaffoldBackgroundColor,
+            backgroundColor: theme.scaffoldBackgroundColor,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isWide = constraints.maxWidth > 950;
@@ -1244,7 +1277,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
         margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
         decoration: AppTheme.brutalistDecoration(
           context: context,
-          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          color: isDark
+              ? (SettingsService.instance.isAmoled ? const Color(0x77121212) : const Color(0x771C1C1E))
+              : const Color(0x77FFFFFF),
           borderRadius: 12.0,
           hasShadow: false,
         ),
@@ -1410,14 +1445,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return Stack(
       children: [
         if (_videoPlayerController != null &&
-            _videoPlayerController!.value.isInitialized)
-          FvpCustomControls(
-            controller: _videoPlayerController!,
-            onFullscreenToggle: _toggleFullscreen,
-            onShowSettings: _showSettingsSheet,
-            topBar: _buildFloatingTopBar(),
-            mediaId: widget.item != null ? '${widget.item!.mediaType}-${widget.item!.id}${widget.season != null ? "-${widget.season}-${widget.episode}" : ""}' : 'unknown',
-            mediaType: widget.item?.mediaType ?? 'movie',
+            _videoPlayerController!.value.isInitialized &&
+            _chewieController != null)
+          material.Theme(
+            data: material.ThemeData.dark().copyWith(
+              platform: TargetPlatform.android,
+            ),
+            child: material.Material(
+              type: material.MaterialType.transparency,
+              child: Chewie(controller: _chewieController!),
+            ),
           )
         else
           Container(color: CupertinoColors.black),
@@ -1911,7 +1948,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: AppTheme.brutalistDecoration(
           context: context,
-          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          color: isDark ? const Color(0x771C1C1E) : const Color(0x77FFFFFF),
           borderRadius: 4.0,
           shadowOffset: 2.0,
         ),
@@ -1967,7 +2004,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           context: context,
           color: isActive
               ? AppTheme.neonYellow
-              : (isDark ? AppTheme.darkSlate : CupertinoColors.white),
+              : (isDark ? const Color(0x771C1C1E) : const Color(0x77FFFFFF)),
           borderRadius: 4.0,
           shadowOffset: isActive ? 2.5 : 0.0,
           hasShadow: isActive,
@@ -2338,7 +2375,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: AppTheme.brutalistDecoration(
           context: context,
-          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          color: isDark ? const Color(0x771C1C1E) : const Color(0x77FFFFFF),
           borderRadius: 4.0,
           shadowOffset: 2.0,
         ),
